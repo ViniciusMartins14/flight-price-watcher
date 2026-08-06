@@ -24,8 +24,15 @@
   box-sizing: border-box;
 }
 
+/* Sempre respeita o atributo hidden, mesmo que alguma regra abaixo defina
+   um "display" próprio para o mesmo elemento (ex: display:flex em .card). */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
+  min-height: 100vh;
   font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
   background: var(--bg);
   color: var(--text);
@@ -85,8 +92,15 @@ select {
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text);
-  padding: 8px 10px;
+  padding: 9px 11px;
   font-size: 1em;
+  transition: border-color 0.15s ease;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent-2);
 }
 
 button {
@@ -97,6 +111,15 @@ button {
   padding: 10px 16px;
   font-weight: 600;
   cursor: pointer;
+  transition: filter 0.15s ease, transform 0.05s ease;
+}
+
+button:hover {
+  filter: brightness(1.08);
+}
+
+button:active {
+  transform: translateY(1px);
 }
 
 button.secondary {
@@ -194,42 +217,64 @@ button.danger {
 }
 
 .user-bar {
-  margin-top: 12px;
-  display: flex;
+  margin-top: 14px;
   justify-content: center;
   align-items: center;
   gap: 12px;
   font-size: 0.9em;
   color: var(--muted);
 }
+.user-bar:not([hidden]) {
+  display: flex;
+}
+
+#auth-section {
+  margin-top: 4vh;
+}
 
 .auth-card {
-  max-width: 380px;
+  max-width: 360px;
   margin: 0 auto;
+  padding: 24px;
+  box-shadow: 0 8px 30px rgb(0 0 0 / 0.12);
 }
 
 .auth-tabs {
   display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: 4px;
+  margin-bottom: 20px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
 }
 
 .auth-tab {
   flex: 1;
   background: transparent;
-  border: 1px solid var(--border);
+  border: none;
+  border-radius: 7px;
   color: var(--muted);
+  padding: 8px 12px;
 }
 
 .auth-tab.active {
   background: var(--accent-2);
   color: #0b0d11;
-  border-color: transparent;
 }
 
 #login-form,
 #signup-form {
-  display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+}
+#login-form:not([hidden]),
+#signup-form:not([hidden]) {
+  display: flex;
+}
+
+#login-form button[type="submit"],
+#signup-form button[type="submit"] {
+  margin-top: 4px;
+  padding: 11px 16px;
 }
