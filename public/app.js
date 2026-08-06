@@ -18,6 +18,9 @@ const returnDateField = document.getElementById("returnDateField");
 const returnDateInput = document.getElementById("returnDate");
 const combineStopsField = document.getElementById("combineStopsField");
 const combineStopsInput = document.getElementById("combineStops");
+const arriveByField = document.getElementById("arriveByField");
+const arriveByInput = document.getElementById("arriveBy");
+const departDateInput = document.getElementById("departDate");
 
 let pollHandle;
 
@@ -30,7 +33,21 @@ function syncReturnDateField() {
   // Tarifa combinada só é suportada pra rotas só de ida por enquanto.
   combineStopsField.hidden = isRoundtrip;
   if (isRoundtrip) combineStopsInput.checked = false;
+  syncArriveByField();
 }
+
+function syncArriveByField() {
+  arriveByField.hidden = !combineStopsInput.checked;
+  if (!combineStopsInput.checked) arriveByInput.value = "";
+}
+
+combineStopsInput.addEventListener("change", syncArriveByField);
+
+function syncArriveByMin() {
+  if (departDateInput.value) arriveByInput.min = departDateInput.value;
+}
+
+departDateInput.addEventListener("change", syncArriveByMin);
 
 tripTypeSelect.addEventListener("change", syncReturnDateField);
 syncReturnDateField();
@@ -177,6 +194,11 @@ function routeCardHtml(state) {
   const whatsappInfo = route.whatsappNumber
     ? `WhatsApp: ${escapeHtml(route.whatsappNumber)}`
     : "WhatsApp: número padrão";
+  const combineInfo = route.combineStops
+    ? route.arriveBy
+      ? `Combinação: aceita chegar até ${escapeHtml(route.arriveBy)} (stopover)`
+      : "Combinação: só conexão apertada (mesmo dia)"
+    : "";
   const fareLink =
     lastCheck?.url && isSafeGoogleFlightsUrl(lastCheck.url)
       ? `<a class="fare-link" href="${escapeHtml(lastCheck.url)}" target="_blank" rel="noopener noreferrer">Ver no Google Voos →</a>`
@@ -192,6 +214,7 @@ function routeCardHtml(state) {
           <div class="route-card-title">${label}</div>
           <div class="route-card-sub">${origin} → ${destination} · ${dates}</div>
           <div class="route-card-sub">${whatsappInfo}</div>
+          ${combineInfo ? `<div class="route-card-sub">${combineInfo}</div>` : ""}
         </div>
         <div class="actions">
           <button class="secondary" data-action="check">Checar agora</button>

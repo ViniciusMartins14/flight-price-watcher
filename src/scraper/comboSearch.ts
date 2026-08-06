@@ -5,17 +5,44 @@ import { buildSearchUrl } from "./googleFlightsUrl.js";
 import type { FlightOption } from "./parseFlightRow.js";
 
 const MIN_CONNECTION_MS = 90 * 60 * 1000; // 1h30 — tempo mínimo realista pra trocar de voo
-const MAX_CONNECTION_MS = 12 * 60 * 60 * 1000; // 12h — acima disso não é conexão, é uma parada longa
+const MAX_TIGHT_CONNECTION_MS = 12 * 60 * 60 * 1000; // 12h — sem data-alvo de chegada, só considera conexão no mesmo dia
 const CANDIDATE_COUNT = 3;
+export const MAX_ARRIVE_BY_DAYS = 7; // limite pra não explodir o número de buscas
+
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function endOfDay(dateStr: string): number {
+  return new Date(`${dateStr}T23:59:59`).getTime();
+}
+
+// Todas as datas entre `from` e `to` (inclusive), limitado a MAX_ARRIVE_BY_DAYS
+// dias pra não gerar buscas demais.
+function dateRange(from: string, to: string): string[] {
+  const dates: string[] = [];
+  let cursor = from;
+  for (let i = 0; i <= MAX_ARRIVE_BY_DAYS && cursor <= to; i++) {
+    dates.push(cursor);
+    cursor = addDays(cursor, 1);
+  }
+  return dates;
+}
 
 /**
  * Procura uma "tarifa combinada": em vez de um voo direto origem -> destino,
  * busca dois voos separados (origem -> aeroporto próximo do destino, e
- * desse aeroporto -> destino) que juntos podem sair mais barato. Só
- * considera combinações onde o segundo voo parte depois que o primeiro
- * chega, com um intervalo mínimo pra trocar de voo (isso são DUAS
- * passagens separadas — sem essa validação de horário, poderia sugerir
- * uma conexão fisicamente impossível de fazer).
+ * desse aeroporto -> destino) que juntos podem sair mais barato.
+ *
+ * Sem `route.arriveBy`: só considera uma conexão apertada de verdade (entre
+ * 1h30 e 12h entre a chegada do trecho 1 e a saída do trecho 2).
+ *
+ * Com `route.arriveBy`: a pessoa topa ficar alguns dias na cidade de
+ * conexão (tipo um "stopover") contanto que chegue no destino final até
+ * essa data — nesse caso busca o trecho 2 em cada dia da janela, sem teto
+ * de 12h, o que costuma achar preços bem mais baixos.
  *
  * Retorna undefined se nenhuma combinação viável for encontrada.
  */
@@ -43,15 +70,19 @@ export async function findBestCombo(route: FlightRoute): Promise<ComboResult | u
       continue;
     }
 
-    // O trecho 1 pode chegar em dias diferentes dependendo do voo (viagens
-    // longas com escala às vezes levam 1-2 dias). Busca o trecho 2 em cada
-    // data de chegada que realmente apareceu, em vez de assumir que os dois
-    // trechos são no mesmo dia da busca original.
+    // Datas em que o trecho 2 precisa ser pesquisado. Sem data-alvo de
+    // chegada, só as datas em que o trecho 1 realmente chega (conexão
+    // apertada). Com data-alvo, cobre toda a janela entre a ida e a data
+    // desejada de chegada, já que a pessoa topa um stopover mais longo.
     const arrivalDates = [...new Set(leg1Options.map((o) => o.arriveAt.slice(0, 10)))];
+    const earliestArrival = arrivalDates.sort()[0];
+    const leg2SearchDates = route.arriveBy
+      ? dateRange(earliestArrival, route.arriveBy)
+      : arrivalDates;
 
     const leg2Options: FlightOption[] = [];
     const leg2UrlByDate = new Map<string, string>();
-    for (const date of arrivalDates) {
+    for (const date of leg2SearchDates) {
       const leg2Route: FlightRoute = {
         ...route,
         origin: candidate.iata,
@@ -70,13 +101,24 @@ export async function findBestCombo(route: FlightRoute): Promise<ComboResult | u
     if (leg2Options.length === 0) continue;
 
     const leg1Url = buildSearchUrl(leg1Route);
+    const maxArriveAtMs = route.arriveBy ? endOfDay(route.arriveBy) : undefined;
 
     for (const leg1 of leg1Options) {
       const arriveAtMs = new Date(leg1.arriveAt).getTime();
       for (const leg2 of leg2Options) {
         const departAtMs = new Date(leg2.departAt).getTime();
         const connectionMs = departAtMs - arriveAtMs;
-        if (connectionMs < MIN_CONNECTION_MS || connectionMs > MAX_CONNECTION_MS) continue;
+        if (connectionMs < MIN_CONNECTION_MS) continue;
+
+        if (maxArriveAtMs === undefined) {
+          // Sem data-alvo: exige conexão apertada de verdade (mesmo dia).
+          if (connectionMs > MAX_TIGHT_CONNECTION_MS) continue;
+        } else {
+          // Com data-alvo: aceita qualquer intervalo, desde que a chegada
+          // final não passe da data desejada.
+          const finalArriveAtMs = new Date(leg2.arriveAt).getTime();
+          if (finalArriveAtMs > maxArriveAtMs) continue;
+        }
 
         const totalPrice = leg1.price + leg2.price;
         if (!best || totalPrice < best.totalPrice) {

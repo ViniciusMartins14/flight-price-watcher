@@ -17,6 +17,7 @@ export interface FlightRoute {
   returnDate?: string; // YYYY-MM-DD, obrigatório se tripType === "roundtrip"
   whatsappNumber?: string; // número que recebe o alerta dessa rota; sem isso usa o número padrão do .env
   combineStops?: boolean; // tenta achar 2 voos separados (via aeroporto próximo ao destino) mais baratos que o direto; só pra tripType "oneway"
+  arriveBy?: string; // YYYY-MM-DD, data limite de chegada no destino final; se ausente, só considera conexão apertada (1h30-12h) no mesmo dia
   createdAt: string;
 }
 

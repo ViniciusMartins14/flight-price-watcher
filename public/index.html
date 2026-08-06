@@ -117,6 +117,16 @@
               São 2 passagens separadas: se um voo atrasar, você pode perder o outro sem
               proteção, e precisa recolher/despachar a bagagem de novo.
             </p>
+            <div class="field" id="arriveByField" hidden>
+              <label for="arriveBy">Topa chegar até que data? (opcional)</label>
+              <input id="arriveBy" name="arriveBy" type="date" />
+              <p class="hint-text">
+                Deixe em branco pra só aceitar conexão apertada (1h30 a 12h no mesmo dia). Se
+                preencher, também busca esperar alguns dias na cidade de conexão (tipo um
+                stopover) até essa data, o que costuma sair bem mais barato — mas demora
+                bem mais pra checar (máximo 7 dias de janela).
+              </p>
+            </div>
           </div>
           <button type="submit">Adicionar rota</button>
         </form>

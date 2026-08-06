@@ -3,6 +3,7 @@ import { resolveAirportCode, searchAirports } from "../airports.js";
 import { requireAuth } from "../auth.js";
 import { addRoute, getRoute, listRoutesForUser, removeRoute } from "../db.js";
 import { checkRoute } from "../scheduler.js";
+import { MAX_ARRIVE_BY_DAYS } from "../scraper/comboSearch.js";
 import { asyncHandler } from "./asyncHandler.js";
 
 export const apiRouter = Router();
@@ -33,6 +34,7 @@ apiRouter.post(
       tripType,
       whatsappNumber,
       combineStops,
+      arriveBy,
     } = req.body ?? {};
 
     if (!origin || !destination || !departDate) {
@@ -55,6 +57,32 @@ apiRouter.post(
         error: "Buscar tarifa combinada só é suportado para rotas só de ida, por enquanto.",
       });
       return;
+    }
+
+    let cleanedArriveBy: string | undefined;
+    if (arriveBy) {
+      if (!combineStops) {
+        res.status(400).json({
+          error: "arriveBy só faz sentido com combineStops ativado.",
+        });
+        return;
+      }
+      const maxDate = new Date(`${departDate}T00:00:00`);
+      maxDate.setDate(maxDate.getDate() + MAX_ARRIVE_BY_DAYS);
+      const arriveByDate = new Date(`${arriveBy}T00:00:00`);
+      if (arriveByDate < new Date(`${departDate}T00:00:00`)) {
+        res.status(400).json({
+          error: "arriveBy não pode ser antes da data de ida.",
+        });
+        return;
+      }
+      if (arriveByDate > maxDate) {
+        res.status(400).json({
+          error: `arriveBy não pode ser mais de ${MAX_ARRIVE_BY_DAYS} dias depois da data de ida.`,
+        });
+        return;
+      }
+      cleanedArriveBy = arriveBy;
     }
 
     const originAirport = resolveAirportCode(String(origin));
@@ -96,6 +124,7 @@ apiRouter.post(
       returnDate: tripType === "roundtrip" ? returnDate : undefined,
       whatsappNumber: cleanedWhatsappNumber,
       combineStops: Boolean(combineStops),
+      arriveBy: cleanedArriveBy,
     });
 
     res.status(201).json(state);

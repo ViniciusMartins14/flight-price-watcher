@@ -15,6 +15,7 @@ interface RouteDoc {
   returnDate?: string;
   whatsappNumber?: string;
   combineStops?: boolean;
+  arriveBy?: string;
   createdAt: string;
   lowestPrice?: number;
   lowestPriceAt?: string;
@@ -59,6 +60,7 @@ function toFlightRoute(doc: RouteDoc): FlightRoute {
     returnDate: doc.returnDate,
     whatsappNumber: doc.whatsappNumber,
     combineStops: doc.combineStops,
+    arriveBy: doc.arriveBy,
     createdAt: doc.createdAt,
   };
 }
@@ -119,6 +121,7 @@ export async function addRoute(
     returnDate: input.returnDate,
     whatsappNumber: input.whatsappNumber,
     combineStops: input.combineStops,
+    arriveBy: input.arriveBy,
     createdAt: new Date().toISOString(),
   };
   await routes.insertOne(doc);
