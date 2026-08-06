@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { resolveAirportCode, searchAirports } from "../airports.js";
 import { requireAuth } from "../auth.js";
 import { addRoute, getRoute, listRoutesForUser, removeRoute } from "../db.js";
 import { checkRoute } from "../scheduler.js";
@@ -7,6 +8,11 @@ import { asyncHandler } from "./asyncHandler.js";
 export const apiRouter = Router();
 
 apiRouter.use(requireAuth);
+
+apiRouter.get("/airports", (req, res) => {
+  const q = String(req.query.q ?? "");
+  res.json(searchAirports(q));
+});
 
 apiRouter.get(
   "/routes",
@@ -36,6 +42,22 @@ apiRouter.post(
       return;
     }
 
+    const originAirport = resolveAirportCode(String(origin));
+    if (!originAirport) {
+      res.status(400).json({
+        error: `Não encontramos um aeroporto para "${origin}". Tente o nome da cidade ou o código IATA (ex: GRU).`,
+      });
+      return;
+    }
+
+    const destinationAirport = resolveAirportCode(String(destination));
+    if (!destinationAirport) {
+      res.status(400).json({
+        error: `Não encontramos um aeroporto para "${destination}". Tente o nome da cidade ou o código IATA (ex: LIS).`,
+      });
+      return;
+    }
+
     let cleanedWhatsappNumber: string | undefined;
     if (whatsappNumber) {
       const digits = String(whatsappNumber).replace(/\D/g, "");
@@ -51,9 +73,9 @@ apiRouter.post(
 
     const state = await addRoute({
       userId: req.userId as string,
-      label: label || `${origin} -> ${destination}`,
-      origin: String(origin).toUpperCase(),
-      destination: String(destination).toUpperCase(),
+      label: label || `${originAirport.iata} -> ${destinationAirport.iata}`,
+      origin: originAirport.iata,
+      destination: destinationAirport.iata,
       tripType,
       departDate,
       returnDate: tripType === "roundtrip" ? returnDate : undefined,

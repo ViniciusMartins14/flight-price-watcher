@@ -29,6 +29,37 @@ function syncReturnDateField() {
 tripTypeSelect.addEventListener("change", syncReturnDateField);
 syncReturnDateField();
 
+// --- Autocomplete de aeroporto (origem/destino) ---
+
+function setupAirportAutocomplete(inputId, datalistId) {
+  const input = document.getElementById(inputId);
+  const datalist = document.getElementById(datalistId);
+  let debounceHandle;
+
+  input.addEventListener("input", () => {
+    clearTimeout(debounceHandle);
+    const query = input.value.trim();
+    if (query.length < 2) {
+      datalist.innerHTML = "";
+      return;
+    }
+    debounceHandle = setTimeout(async () => {
+      const res = await fetch(`/api/airports?q=${encodeURIComponent(query)}`);
+      if (!res.ok) return;
+      const airports = await res.json();
+      datalist.innerHTML = airports
+        .map(
+          (a) =>
+            `<option value="${escapeHtml(a.iata)}">${escapeHtml(a.city)} — ${escapeHtml(a.name)}</option>`
+        )
+        .join("");
+    }, 200);
+  });
+}
+
+setupAirportAutocomplete("origin", "origin-options");
+setupAirportAutocomplete("destination", "destination-options");
+
 function formatPrice(price, currency) {
   if (currency === "BRL") {
     return `R$ ${Number(price).toLocaleString("pt-BR")}`;
