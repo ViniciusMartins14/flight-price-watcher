@@ -30,35 +30,73 @@ tripTypeSelect.addEventListener("change", syncReturnDateField);
 syncReturnDateField();
 
 // --- Autocomplete de aeroporto (origem/destino) ---
+//
+// Um <datalist> nativo não é confiável aqui: como as sugestões vêm de um
+// fetch assíncrono (com debounce), o navegador às vezes já "decidiu" não
+// mostrar o menu no momento da tecla e não reabre sozinho quando as opções
+// chegam depois. Por isso, o dropdown de sugestões é feito à mão.
 
-function setupAirportAutocomplete(inputId, datalistId) {
+function setupAirportAutocomplete(inputId, dropdownId) {
   const input = document.getElementById(inputId);
-  const datalist = document.getElementById(datalistId);
+  const dropdown = document.getElementById(dropdownId);
   let debounceHandle;
+  let requestId = 0;
+
+  function hideDropdown() {
+    dropdown.hidden = true;
+    dropdown.innerHTML = "";
+  }
+
+  function renderSuggestions(airports) {
+    if (airports.length === 0) {
+      hideDropdown();
+      return;
+    }
+    dropdown.innerHTML = airports
+      .map(
+        (a) => `
+          <div class="airport-option" data-iata="${escapeHtml(a.iata)}">
+            <span class="airport-option-code">${escapeHtml(a.iata)}</span>
+            <span class="airport-option-label">${escapeHtml(a.city)} — ${escapeHtml(a.name)}</span>
+          </div>
+        `
+      )
+      .join("");
+    dropdown.hidden = false;
+  }
 
   input.addEventListener("input", () => {
     clearTimeout(debounceHandle);
     const query = input.value.trim();
     if (query.length < 2) {
-      datalist.innerHTML = "";
+      hideDropdown();
       return;
     }
+    const currentRequestId = ++requestId;
     debounceHandle = setTimeout(async () => {
       const res = await fetch(`/api/airports?q=${encodeURIComponent(query)}`);
-      if (!res.ok) return;
-      const airports = await res.json();
-      datalist.innerHTML = airports
-        .map(
-          (a) =>
-            `<option value="${escapeHtml(a.iata)}">${escapeHtml(a.city)} — ${escapeHtml(a.name)}</option>`
-        )
-        .join("");
+      if (!res.ok || currentRequestId !== requestId) return;
+      renderSuggestions(await res.json());
     }, 200);
+  });
+
+  // mousedown (não click) dispara antes do blur do input, senão o dropdown
+  // já teria sumido antes do clique ser processado.
+  dropdown.addEventListener("mousedown", (e) => {
+    const option = e.target.closest(".airport-option");
+    if (!option) return;
+    e.preventDefault();
+    input.value = option.dataset.iata;
+    hideDropdown();
+  });
+
+  input.addEventListener("blur", () => {
+    setTimeout(hideDropdown, 150);
   });
 }
 
-setupAirportAutocomplete("origin", "origin-options");
-setupAirportAutocomplete("destination", "destination-options");
+setupAirportAutocomplete("origin", "origin-suggestions");
+setupAirportAutocomplete("destination", "destination-suggestions");
 
 function formatPrice(price, currency) {
   if (currency === "BRL") {

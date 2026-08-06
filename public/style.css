@@ -81,6 +81,51 @@ main {
   gap: 4px;
 }
 
+.airport-field {
+  position: relative;
+}
+
+.airport-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.2);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.airport-option {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+.airport-option:hover,
+.airport-option:active {
+  background: var(--bg);
+}
+
+.airport-option-code {
+  font-weight: 700;
+  color: var(--accent-2);
+  flex-shrink: 0;
+}
+
+.airport-option-label {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 label {
   font-size: 0.85em;
   color: var(--muted);

@@ -58,31 +58,29 @@
             <label for="label">Apelido (opcional)</label>
             <input id="label" name="label" type="text" placeholder="Ex: Férias em Lisboa" />
           </div>
-          <div class="field">
+          <div class="field airport-field">
             <label for="origin">Origem (código ou cidade)</label>
             <input
               id="origin"
               name="origin"
               type="text"
               placeholder="GRU ou São Paulo"
-              list="origin-options"
               autocomplete="off"
               required
             />
-            <datalist id="origin-options"></datalist>
+            <div class="airport-suggestions" id="origin-suggestions" hidden></div>
           </div>
-          <div class="field">
+          <div class="field airport-field">
             <label for="destination">Destino (código ou cidade)</label>
             <input
               id="destination"
               name="destination"
               type="text"
               placeholder="LIS ou Lisboa"
-              list="destination-options"
               autocomplete="off"
               required
             />
-            <datalist id="destination-options"></datalist>
+            <div class="airport-suggestions" id="destination-suggestions" hidden></div>
           </div>
           <div class="field">
             <label for="tripType">Tipo de viagem</label>
