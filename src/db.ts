@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getDb } from "./mongo.js";
-import type { FlightRoute, PriceCheck, RouteState, User } from "./types.js";
+import type { ComboResult, FlightRoute, PriceCheck, RouteState, User } from "./types.js";
 
 const MAX_HISTORY_PER_ROUTE = 100;
 
@@ -14,6 +14,7 @@ interface RouteDoc {
   departDate: string;
   returnDate?: string;
   whatsappNumber?: string;
+  combineStops?: boolean;
   createdAt: string;
   lowestPrice?: number;
   lowestPriceAt?: string;
@@ -57,6 +58,7 @@ function toFlightRoute(doc: RouteDoc): FlightRoute {
     departDate: doc.departDate,
     returnDate: doc.returnDate,
     whatsappNumber: doc.whatsappNumber,
+    combineStops: doc.combineStops,
     createdAt: doc.createdAt,
   };
 }
@@ -116,6 +118,7 @@ export async function addRoute(
     departDate: input.departDate,
     returnDate: input.returnDate,
     whatsappNumber: input.whatsappNumber,
+    combineStops: input.combineStops,
     createdAt: new Date().toISOString(),
   };
   await routes.insertOne(doc);
@@ -136,19 +139,26 @@ export async function recordPriceCheck(
   routeId: string,
   price: number,
   currency: string,
-  url: string
+  url: string,
+  combo?: ComboResult
 ): Promise<{ state: RouteState; check: PriceCheck } | undefined> {
   const routes = await routesCollection();
   const doc = await routes.findOne({ _id: routeId });
   if (!doc) return undefined;
 
-  const isNewLow = doc.lowestPrice === undefined || price < doc.lowestPrice;
+  // Se a tarifa combinada (2 trechos) ficou mais barata que o voo direto,
+  // ela que conta como "o preço" dessa checagem pra fins de menor preço
+  // e alerta — o direto continua registrado em price/url pra referência.
+  const effectivePrice = combo && combo.totalPrice < price ? combo.totalPrice : price;
+
+  const isNewLow = doc.lowestPrice === undefined || effectivePrice < doc.lowestPrice;
   const check: PriceCheck = {
     price,
     currency,
     checkedAt: new Date().toISOString(),
     isNewLow,
     url,
+    combo,
   };
 
   const checks = await priceChecksCollection();
@@ -166,7 +176,7 @@ export async function recordPriceCheck(
 
   const update: Partial<RouteDoc> = { lastError: undefined };
   if (isNewLow) {
-    update.lowestPrice = price;
+    update.lowestPrice = effectivePrice;
     update.lowestPriceAt = check.checkedAt;
   }
   await routes.updateOne({ _id: routeId }, { $set: update });

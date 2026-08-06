@@ -6,6 +6,8 @@ export interface Airport {
   city: string;
   country: string;
   large: boolean;
+  lat: number;
+  lon: number;
 }
 
 const airports = airportsData as Airport[];
@@ -152,4 +154,49 @@ export function searchAirports(query: string, limit = 8): Airport[] {
     ...sortByLarge(nameWord),
     ...sortByLarge(cityContains),
   ].slice(0, limit);
+}
+
+const EARTH_RADIUS_KM = 6371;
+
+function toRad(deg: number): number {
+  return (deg * Math.PI) / 180;
+}
+
+function distanceKm(a: Airport, b: Airport): number {
+  const dLat = toRad(b.lat - a.lat);
+  const dLon = toRad(b.lon - a.lon);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(h));
+}
+
+/**
+ * Aeroportos mais próximos (linha reta) de um aeroporto de referência —
+ * usado pra buscar "tarifas combinadas" (dois voos separados via um
+ * aeroporto próximo ao destino final). Prioriza aeroportos grandes:
+ * um voo de longo curso (ex: Brasil -> Europa) dificilmente pousa direto
+ * num aeroportinho regional, então eles só entram se faltar opção grande
+ * por perto.
+ */
+export function findNearestAirports(iata: string, count = 4): Airport[] {
+  const origin = byIata.get(iata.toUpperCase());
+  if (!origin) return [];
+
+  const byDistance = airports
+    .filter((a) => a.iata !== origin.iata)
+    .map((a) => ({ airport: a, distance: distanceKm(origin, a) }))
+    .sort((a, b) => a.distance - b.distance);
+
+  const large = byDistance.filter((x) => x.airport.large).slice(0, count);
+  if (large.length >= count) return large.map((x) => x.airport);
+
+  const rest = byDistance
+    .filter((x) => !x.airport.large)
+    .slice(0, count - large.length);
+
+  return [...large, ...rest]
+    .sort((a, b) => a.distance - b.distance)
+    .map((x) => x.airport);
 }

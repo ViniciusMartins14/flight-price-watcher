@@ -24,8 +24,16 @@ apiRouter.get(
 apiRouter.post(
   "/routes",
   asyncHandler(async (req, res) => {
-    const { label, origin, destination, departDate, returnDate, tripType, whatsappNumber } =
-      req.body ?? {};
+    const {
+      label,
+      origin,
+      destination,
+      departDate,
+      returnDate,
+      tripType,
+      whatsappNumber,
+      combineStops,
+    } = req.body ?? {};
 
     if (!origin || !destination || !departDate) {
       res.status(400).json({ error: "origin, destination e departDate são obrigatórios." });
@@ -39,6 +47,13 @@ apiRouter.post(
 
     if (tripType === "roundtrip" && !returnDate) {
       res.status(400).json({ error: "returnDate é obrigatório quando tripType é 'roundtrip'." });
+      return;
+    }
+
+    if (combineStops && tripType !== "oneway") {
+      res.status(400).json({
+        error: "Buscar tarifa combinada só é suportado para rotas só de ida, por enquanto.",
+      });
       return;
     }
 
@@ -80,6 +95,7 @@ apiRouter.post(
       departDate,
       returnDate: tripType === "roundtrip" ? returnDate : undefined,
       whatsappNumber: cleanedWhatsappNumber,
+      combineStops: Boolean(combineStops),
     });
 
     res.status(201).json(state);

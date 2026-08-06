@@ -16,6 +16,8 @@ const form = document.getElementById("route-form");
 const tripTypeSelect = document.getElementById("tripType");
 const returnDateField = document.getElementById("returnDateField");
 const returnDateInput = document.getElementById("returnDate");
+const combineStopsField = document.getElementById("combineStopsField");
+const combineStopsInput = document.getElementById("combineStops");
 
 let pollHandle;
 
@@ -24,6 +26,10 @@ function syncReturnDateField() {
   returnDateField.hidden = !isRoundtrip;
   returnDateInput.required = isRoundtrip;
   if (!isRoundtrip) returnDateInput.value = "";
+
+  // Tarifa combinada só é suportada pra rotas só de ida por enquanto.
+  combineStopsField.hidden = isRoundtrip;
+  if (isRoundtrip) combineStopsInput.checked = false;
 }
 
 tripTypeSelect.addEventListener("change", syncReturnDateField);
@@ -125,6 +131,39 @@ function isSafeGoogleFlightsUrl(url) {
   }
 }
 
+function formatFlightTime(iso) {
+  return new Date(iso).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function comboDetailsHtml(combo, directPrice, originIata, destinationIata) {
+  if (!combo || combo.totalPrice >= directPrice) return "";
+
+  const legHtml = (leg, title) => `
+    <div class="combo-leg">
+      <strong>${escapeHtml(title)}</strong>: ${formatFlightTime(leg.departAt)} → ${formatFlightTime(leg.arriveAt)} ·
+      ${formatPrice(leg.price, leg.currency)}
+      ${isSafeGoogleFlightsUrl(leg.url) ? `· <a href="${escapeHtml(leg.url)}" target="_blank" rel="noopener noreferrer">ver voo</a>` : ""}
+    </div>
+  `;
+
+  return `
+    <div class="combo-details">
+      <div class="combo-title">✈️ Tarifa combinada mais barata, via ${escapeHtml(combo.via)}: ${formatPrice(combo.totalPrice, combo.currency)}</div>
+      ${legHtml(combo.leg1, `Trecho 1 (${originIata} → ${combo.via})`)}
+      ${legHtml(combo.leg2, `Trecho 2 (${combo.via} → ${destinationIata})`)}
+      <div class="hint-text" style="margin-top:6px">
+        ⚠️ São 2 passagens separadas: confira o tempo de conexão antes de comprar, e não há
+        proteção se um voo atrasar e você perder o outro.
+      </div>
+    </div>
+  `;
+}
+
 function routeCardHtml(state) {
   const { route, lowestPrice, lowestPriceAt, history, lastError } = state;
   const label = escapeHtml(route.label || `${route.origin} -> ${route.destination}`);
@@ -142,6 +181,9 @@ function routeCardHtml(state) {
     lastCheck?.url && isSafeGoogleFlightsUrl(lastCheck.url)
       ? `<a class="fare-link" href="${escapeHtml(lastCheck.url)}" target="_blank" rel="noopener noreferrer">Ver no Google Voos →</a>`
       : "";
+  const comboHtml = lastCheck?.combo
+    ? comboDetailsHtml(lastCheck.combo, lastCheck.price, origin, destination)
+    : "";
 
   return `
     <article class="route-card" data-id="${route.id}">
@@ -171,6 +213,7 @@ function routeCardHtml(state) {
       </div>
 
       ${fareLink}
+      ${comboHtml}
       ${lastError ? `<div class="error-text">Erro na última checagem: ${escapeHtml(lastError)}</div>` : ""}
     </article>
   `;

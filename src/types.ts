@@ -16,7 +16,24 @@ export interface FlightRoute {
   departDate: string; // YYYY-MM-DD
   returnDate?: string; // YYYY-MM-DD, obrigatório se tripType === "roundtrip"
   whatsappNumber?: string; // número que recebe o alerta dessa rota; sem isso usa o número padrão do .env
+  combineStops?: boolean; // tenta achar 2 voos separados (via aeroporto próximo ao destino) mais baratos que o direto; só pra tripType "oneway"
   createdAt: string;
+}
+
+export interface ComboLeg {
+  price: number;
+  currency: string;
+  departAt: string; // ISO
+  arriveAt: string; // ISO
+  url: string;
+}
+
+export interface ComboResult {
+  via: string; // código IATA do aeroporto de conexão
+  leg1: ComboLeg;
+  leg2: ComboLeg;
+  totalPrice: number;
+  currency: string;
 }
 
 export interface PriceCheck {
@@ -25,6 +42,7 @@ export interface PriceCheck {
   checkedAt: string;
   isNewLow: boolean;
   url: string; // link do Google Voos para essa busca
+  combo?: ComboResult; // presente quando a melhor opção encontrada foi uma tarifa combinada
 }
 
 export interface RouteState {

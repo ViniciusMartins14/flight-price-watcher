@@ -49,6 +49,8 @@ for (let i = 1; i < lines.length; i++) {
     city: fields[idx.municipality] || "",
     country: fields[idx.iso_country] || "",
     large: type === "large_airport",
+    lat: Number(fields[idx.latitude_deg]),
+    lon: Number(fields[idx.longitude_deg]),
   });
 }
 

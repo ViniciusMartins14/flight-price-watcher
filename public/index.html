@@ -106,6 +106,18 @@
               placeholder="5511999999999"
             />
           </div>
+          <div class="field combine-stops-field" id="combineStopsField">
+            <label class="checkbox-label">
+              <input id="combineStops" name="combineStops" type="checkbox" />
+              Tentar combinar 2 voos separados (mais barato às vezes)
+            </label>
+            <p class="hint-text">
+              Além do voo direto, também busca um voo até um aeroporto perto do destino + um
+              voo de lá até o destino, somando os preços. Deixa a checagem bem mais lenta.
+              São 2 passagens separadas: se um voo atrasar, você pode perder o outro sem
+              proteção, e precisa recolher/despachar a bagagem de novo.
+            </p>
+          </div>
           <button type="submit">Adicionar rota</button>
         </form>
       </section>

@@ -126,6 +126,59 @@ main {
   white-space: nowrap;
 }
 
+.combine-stops-field {
+  grid-column: 1 / -1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  gap: 6px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 0.95em;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: auto;
+  accent-color: var(--accent-2);
+}
+
+.hint-text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8em;
+  line-height: 1.4;
+}
+
+.combo-details {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  font-size: 0.85em;
+}
+
+.combo-details .combo-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.combo-leg {
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.combo-leg a {
+  color: var(--accent-2);
+}
+
 label {
   font-size: 0.85em;
   color: var(--muted);
