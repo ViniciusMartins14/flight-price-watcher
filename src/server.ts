@@ -1,11 +1,15 @@
+import cookieParser from "cookie-parser";
 import express from "express";
 import path from "node:path";
 import { config } from "./config.js";
 import { apiRouter } from "./routes/api.js";
+import { authRouter } from "./routes/auth.js";
 
 export function createServer() {
   const app = express();
   app.use(express.json());
+  app.use(cookieParser());
+  app.use("/api/auth", authRouter);
   app.use("/api", apiRouter);
   // process.cwd() (não __dirname) porque no Vercel o arquivo roda empacotado
   // a partir da raiz do projeto, onde a pasta public/ está.

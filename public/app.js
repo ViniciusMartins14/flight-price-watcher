@@ -1,8 +1,23 @@
+const authSection = document.getElementById("auth-section");
+const appSection = document.getElementById("app-section");
+const userBar = document.getElementById("user-bar");
+const userEmailEl = document.getElementById("user-email");
+const logoutButton = document.getElementById("logout-button");
+
+const showLoginBtn = document.getElementById("show-login");
+const showSignupBtn = document.getElementById("show-signup");
+const loginForm = document.getElementById("login-form");
+const signupForm = document.getElementById("signup-form");
+const loginError = document.getElementById("login-error");
+const signupError = document.getElementById("signup-error");
+
 const routesList = document.getElementById("routes-list");
 const form = document.getElementById("route-form");
 const tripTypeSelect = document.getElementById("tripType");
 const returnDateField = document.getElementById("returnDateField");
 const returnDateInput = document.getElementById("returnDate");
+
+let pollHandle;
 
 function syncReturnDateField() {
   const isRoundtrip = tripTypeSelect.value === "roundtrip";
@@ -94,6 +109,10 @@ function routeCardHtml(state) {
 
 async function loadRoutes() {
   const res = await fetch("/api/routes");
+  if (res.status === 401) {
+    showAuth();
+    return;
+  }
   const states = await res.json();
 
   if (states.length === 0) {
@@ -145,5 +164,94 @@ form.addEventListener("submit", async (e) => {
   await loadRoutes();
 });
 
-loadRoutes();
-setInterval(loadRoutes, 30000);
+// --- Autenticação ---
+
+function showAuth() {
+  clearInterval(pollHandle);
+  authSection.hidden = false;
+  appSection.hidden = true;
+  userBar.hidden = true;
+}
+
+function showApp(user) {
+  authSection.hidden = true;
+  appSection.hidden = false;
+  userBar.hidden = false;
+  userEmailEl.textContent = user.email;
+  loadRoutes();
+  clearInterval(pollHandle);
+  pollHandle = setInterval(loadRoutes, 30000);
+}
+
+showLoginBtn.addEventListener("click", () => {
+  showLoginBtn.classList.add("active");
+  showSignupBtn.classList.remove("active");
+  loginForm.hidden = false;
+  signupForm.hidden = true;
+});
+
+showSignupBtn.addEventListener("click", () => {
+  showSignupBtn.classList.add("active");
+  showLoginBtn.classList.remove("active");
+  signupForm.hidden = false;
+  loginForm.hidden = true;
+});
+
+loginForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  loginError.textContent = "";
+  const data = Object.fromEntries(new FormData(loginForm).entries());
+
+  const res = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  const body = await res.json();
+
+  if (!res.ok) {
+    loginError.textContent = body.error || "Não foi possível entrar.";
+    return;
+  }
+
+  loginForm.reset();
+  showApp(body.user);
+});
+
+signupForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  signupError.textContent = "";
+  const data = Object.fromEntries(new FormData(signupForm).entries());
+
+  const res = await fetch("/api/auth/signup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  const body = await res.json();
+
+  if (!res.ok) {
+    signupError.textContent = body.error || "Não foi possível criar a conta.";
+    return;
+  }
+
+  signupForm.reset();
+  showApp(body.user);
+});
+
+logoutButton.addEventListener("click", async () => {
+  await fetch("/api/auth/logout", { method: "POST" });
+  showAuth();
+});
+
+async function init() {
+  const res = await fetch("/api/auth/me");
+  if (res.ok) {
+    const body = await res.json();
+    showApp(body.user);
+  } else {
+    showAuth();
+  }
+}
+
+init();

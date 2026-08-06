@@ -10,55 +10,94 @@
   <header>
     <h1>✈️ Flight Price Watcher</h1>
     <p>Monitoramento de preços de passagens aéreas no Google Voos</p>
+    <div id="user-bar" class="user-bar" hidden>
+      <span id="user-email"></span>
+      <button id="logout-button" class="secondary">Sair</button>
+    </div>
   </header>
 
   <main>
-    <section class="card">
-      <h2>Adicionar rota</h2>
-      <form id="route-form">
+    <section id="auth-section" class="card auth-card">
+      <div class="auth-tabs">
+        <button type="button" id="show-login" class="auth-tab active">Entrar</button>
+        <button type="button" id="show-signup" class="auth-tab">Criar conta</button>
+      </div>
+
+      <form id="login-form">
         <div class="field">
-          <label for="label">Apelido (opcional)</label>
-          <input id="label" name="label" type="text" placeholder="Ex: Férias em Lisboa" />
-        </div>
-        <div class="field">
-          <label for="origin">Origem (código ou cidade)</label>
-          <input id="origin" name="origin" type="text" placeholder="GRU" required />
-        </div>
-        <div class="field">
-          <label for="destination">Destino (código ou cidade)</label>
-          <input id="destination" name="destination" type="text" placeholder="LIS" required />
+          <label for="login-email">E-mail</label>
+          <input id="login-email" name="email" type="email" required />
         </div>
         <div class="field">
-          <label for="tripType">Tipo de viagem</label>
-          <select id="tripType" name="tripType">
-            <option value="oneway">Só ida</option>
-            <option value="roundtrip">Ida e volta</option>
-          </select>
+          <label for="login-password">Senha</label>
+          <input id="login-password" name="password" type="password" required />
+        </div>
+        <button type="submit">Entrar</button>
+        <div class="error-text" id="login-error"></div>
+      </form>
+
+      <form id="signup-form" hidden>
+        <div class="field">
+          <label for="signup-email">E-mail</label>
+          <input id="signup-email" name="email" type="email" required />
         </div>
         <div class="field">
-          <label for="departDate">Data de ida</label>
-          <input id="departDate" name="departDate" type="date" required />
+          <label for="signup-password">Senha (mínimo 8 caracteres)</label>
+          <input id="signup-password" name="password" type="password" minlength="8" required />
         </div>
-        <div class="field" id="returnDateField" hidden>
-          <label for="returnDate">Data de volta</label>
-          <input id="returnDate" name="returnDate" type="date" />
-        </div>
-        <div class="field">
-          <label for="whatsappNumber">WhatsApp para avisar (opcional)</label>
-          <input
-            id="whatsappNumber"
-            name="whatsappNumber"
-            type="text"
-            placeholder="5511999999999"
-          />
-        </div>
-        <button type="submit">Adicionar rota</button>
+        <button type="submit">Criar conta</button>
+        <div class="error-text" id="signup-error"></div>
       </form>
     </section>
 
-    <section>
-      <h2>Rotas monitoradas</h2>
-      <div id="routes-list"></div>
+    <section id="app-section" hidden>
+      <section class="card">
+        <h2>Adicionar rota</h2>
+        <form id="route-form">
+          <div class="field">
+            <label for="label">Apelido (opcional)</label>
+            <input id="label" name="label" type="text" placeholder="Ex: Férias em Lisboa" />
+          </div>
+          <div class="field">
+            <label for="origin">Origem (código ou cidade)</label>
+            <input id="origin" name="origin" type="text" placeholder="GRU" required />
+          </div>
+          <div class="field">
+            <label for="destination">Destino (código ou cidade)</label>
+            <input id="destination" name="destination" type="text" placeholder="LIS" required />
+          </div>
+          <div class="field">
+            <label for="tripType">Tipo de viagem</label>
+            <select id="tripType" name="tripType">
+              <option value="oneway">Só ida</option>
+              <option value="roundtrip">Ida e volta</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="departDate">Data de ida</label>
+            <input id="departDate" name="departDate" type="date" required />
+          </div>
+          <div class="field" id="returnDateField" hidden>
+            <label for="returnDate">Data de volta</label>
+            <input id="returnDate" name="returnDate" type="date" />
+          </div>
+          <div class="field">
+            <label for="whatsappNumber">WhatsApp para avisar (opcional)</label>
+            <input
+              id="whatsappNumber"
+              name="whatsappNumber"
+              type="text"
+              placeholder="5511999999999"
+            />
+          </div>
+          <button type="submit">Adicionar rota</button>
+        </form>
+      </section>
+
+      <section>
+        <h2>Rotas monitoradas</h2>
+        <div id="routes-list"></div>
+      </section>
     </section>
   </main>
 

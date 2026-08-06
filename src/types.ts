@@ -1,7 +1,14 @@
 export type TripType = "oneway" | "roundtrip";
 
+export interface User {
+  id: string;
+  email: string;
+  createdAt: string;
+}
+
 export interface FlightRoute {
   id: string;
+  userId: string;
   label: string;
   origin: string; // código IATA ou cidade, ex: "GRU"
   destination: string; // código IATA ou cidade, ex: "LIS"

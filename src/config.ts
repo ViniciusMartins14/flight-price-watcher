@@ -15,10 +15,16 @@ export const config = {
   headlessScraper: (process.env.SCRAPER_HEADLESS ?? "true") !== "false",
   mongodbUri: process.env.MONGODB_URI ?? "",
   mongodbDbName: process.env.MONGODB_DB_NAME ?? "flight_price_watcher",
+  jwtSecret: process.env.JWT_SECRET ?? "",
+  isProduction: process.env.NODE_ENV === "production" || !!process.env.VERCEL,
 };
 
 export function assertMongoConfigured(): void {
   required("MONGODB_URI", config.mongodbUri || undefined);
+}
+
+export function assertJwtConfigured(): void {
+  required("JWT_SECRET", config.jwtSecret || undefined);
 }
 
 export function assertWhatsappConfigured(): void {

@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { getDb } from "./mongo.js";
-import type { FlightRoute, PriceCheck, RouteState } from "./types.js";
+import type { FlightRoute, PriceCheck, RouteState, User } from "./types.js";
 
 const MAX_HISTORY_PER_ROUTE = 100;
 
 interface RouteDoc {
   _id: string;
+  userId: string;
   label: string;
   origin: string;
   destination: string;
@@ -23,6 +24,13 @@ interface PriceCheckDoc extends PriceCheck {
   routeId: string;
 }
 
+interface UserDoc {
+  _id: string;
+  email: string;
+  passwordHash: string;
+  createdAt: string;
+}
+
 async function routesCollection() {
   const db = await getDb();
   return db.collection<RouteDoc>("routes");
@@ -33,9 +41,15 @@ async function priceChecksCollection() {
   return db.collection<PriceCheckDoc>("priceChecks");
 }
 
+async function usersCollection() {
+  const db = await getDb();
+  return db.collection<UserDoc>("users");
+}
+
 function toFlightRoute(doc: RouteDoc): FlightRoute {
   return {
     id: doc._id,
+    userId: doc.userId,
     label: doc.label,
     origin: doc.origin,
     destination: doc.destination,
@@ -45,6 +59,10 @@ function toFlightRoute(doc: RouteDoc): FlightRoute {
     whatsappNumber: doc.whatsappNumber,
     createdAt: doc.createdAt,
   };
+}
+
+function toUser(doc: UserDoc): User {
+  return { id: doc._id, email: doc.email, createdAt: doc.createdAt };
 }
 
 async function buildRouteState(doc: RouteDoc): Promise<RouteState> {
@@ -64,9 +82,17 @@ async function buildRouteState(doc: RouteDoc): Promise<RouteState> {
   };
 }
 
-export async function listRoutes(): Promise<RouteState[]> {
+/** Todas as rotas de todos os usuários — usado pelo worker local (scraper + WhatsApp). */
+export async function listAllRoutes(): Promise<RouteState[]> {
   const routes = await routesCollection();
   const docs = await routes.find().sort({ createdAt: 1 }).toArray();
+  return Promise.all(docs.map(buildRouteState));
+}
+
+/** Só as rotas do usuário informado — usado pelo dashboard/API autenticada. */
+export async function listRoutesForUser(userId: string): Promise<RouteState[]> {
+  const routes = await routesCollection();
+  const docs = await routes.find({ userId }).sort({ createdAt: 1 }).toArray();
   return Promise.all(docs.map(buildRouteState));
 }
 
@@ -82,6 +108,7 @@ export async function addRoute(
   const routes = await routesCollection();
   const doc: RouteDoc = {
     _id: randomUUID(),
+    userId: input.userId,
     label: input.label,
     origin: input.origin,
     destination: input.destination,
@@ -95,11 +122,13 @@ export async function addRoute(
   return buildRouteState(doc);
 }
 
-export async function removeRoute(id: string): Promise<boolean> {
+export async function removeRoute(id: string, userId: string): Promise<boolean> {
   const routes = await routesCollection();
   const checks = await priceChecksCollection();
-  const result = await routes.deleteOne({ _id: id });
-  await checks.deleteMany({ routeId: id });
+  const result = await routes.deleteOne({ _id: id, userId });
+  if (result.deletedCount > 0) {
+    await checks.deleteMany({ routeId: id });
+  }
   return result.deletedCount > 0;
 }
 
@@ -150,4 +179,30 @@ export async function recordPriceCheck(
 export async function recordError(routeId: string, message: string): Promise<void> {
   const routes = await routesCollection();
   await routes.updateOne({ _id: routeId }, { $set: { lastError: message } });
+}
+
+export async function createUser(email: string, passwordHash: string): Promise<User> {
+  const users = await usersCollection();
+  const doc: UserDoc = {
+    _id: randomUUID(),
+    email: email.toLowerCase(),
+    passwordHash,
+    createdAt: new Date().toISOString(),
+  };
+  await users.insertOne(doc);
+  return toUser(doc);
+}
+
+export async function findUserByEmail(
+  email: string
+): Promise<(User & { passwordHash: string }) | undefined> {
+  const users = await usersCollection();
+  const doc = await users.findOne({ email: email.toLowerCase() });
+  return doc ? { ...toUser(doc), passwordHash: doc.passwordHash } : undefined;
+}
+
+export async function findUserById(id: string): Promise<User | undefined> {
+  const users = await usersCollection();
+  const doc = await users.findOne({ _id: id });
+  return doc ? toUser(doc) : undefined;
 }

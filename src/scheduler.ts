@@ -1,5 +1,5 @@
 import { config } from "./config.js";
-import { listRoutes, recordError, recordPriceCheck } from "./db.js";
+import { getRoute, listAllRoutes, recordError, recordPriceCheck } from "./db.js";
 import { scrapeCheapestFare } from "./scraper/googleFlights.js";
 import { sendWhatsappMessage } from "./whatsapp.js";
 
@@ -16,8 +16,7 @@ function formatPrice(price: number, currency: string): string {
 }
 
 async function checkRoute(routeId: string): Promise<void> {
-  const routes = await listRoutes();
-  const state = routes.find((r) => r.route.id === routeId);
+  const state = await getRoute(routeId);
   if (!state) return;
 
   const { route } = state;
@@ -60,7 +59,7 @@ async function checkRoute(routeId: string): Promise<void> {
 }
 
 export async function runCheckCycle(): Promise<void> {
-  const routes = await listRoutes();
+  const routes = await listAllRoutes();
   for (const state of routes) {
     await checkRoute(state.route.id);
     await sleep(DELAY_BETWEEN_ROUTES_MS);

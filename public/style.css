@@ -192,3 +192,44 @@ button.danger {
   text-align: center;
   padding: 20px;
 }
+
+.user-bar {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.9em;
+  color: var(--muted);
+}
+
+.auth-card {
+  max-width: 380px;
+  margin: 0 auto;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.auth-tab {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.auth-tab.active {
+  background: var(--accent-2);
+  color: #0b0d11;
+  border-color: transparent;
+}
+
+#login-form,
+#signup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

@@ -12,6 +12,7 @@ if (!origin || !destination || !departDate) {
 
 const route: FlightRoute = {
   id: "test",
+  userId: "test",
   label: "teste",
   origin,
   destination,

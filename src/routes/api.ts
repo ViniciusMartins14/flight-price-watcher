@@ -1,24 +1,17 @@
-import { Router, type Request, type RequestHandler, type Response } from "express";
-import { addRoute, getRoute, listRoutes, removeRoute } from "../db.js";
+import { Router } from "express";
+import { requireAuth } from "../auth.js";
+import { addRoute, getRoute, listRoutesForUser, removeRoute } from "../db.js";
 import { checkRoute } from "../scheduler.js";
+import { asyncHandler } from "./asyncHandler.js";
 
 export const apiRouter = Router();
 
-// Express 4 não captura rejeições de handlers async sozinho; sem isso, um
-// erro (ex: instabilidade momentânea de conexão com o MongoDB) derruba o
-// processo inteiro em vez de responder com um erro HTTP.
-function asyncHandler(
-  handler: (req: Request, res: Response) => Promise<void>
-): RequestHandler {
-  return (req, res, next) => {
-    handler(req, res).catch(next);
-  };
-}
+apiRouter.use(requireAuth);
 
 apiRouter.get(
   "/routes",
-  asyncHandler(async (_req, res) => {
-    res.json(await listRoutes());
+  asyncHandler(async (req, res) => {
+    res.json(await listRoutesForUser(req.userId as string));
   })
 );
 
@@ -57,6 +50,7 @@ apiRouter.post(
     }
 
     const state = await addRoute({
+      userId: req.userId as string,
       label: label || `${origin} -> ${destination}`,
       origin: String(origin).toUpperCase(),
       destination: String(destination).toUpperCase(),
@@ -73,7 +67,7 @@ apiRouter.post(
 apiRouter.delete(
   "/routes/:id",
   asyncHandler(async (req, res) => {
-    const removed = await removeRoute(req.params.id);
+    const removed = await removeRoute(req.params.id, req.userId as string);
     if (!removed) {
       res.status(404).json({ error: "Rota não encontrada." });
       return;
@@ -86,7 +80,7 @@ apiRouter.post(
   "/routes/:id/check",
   asyncHandler(async (req, res) => {
     const state = await getRoute(req.params.id);
-    if (!state) {
+    if (!state || state.route.userId !== req.userId) {
       res.status(404).json({ error: "Rota não encontrada." });
       return;
     }
@@ -96,7 +90,9 @@ apiRouter.post(
   })
 );
 
-apiRouter.use((err: unknown, _req: Request, res: Response, _next: (err?: unknown) => void) => {
-  console.error("Erro na API:", err);
-  res.status(500).json({ error: "Erro interno do servidor." });
-});
+apiRouter.use(
+  (err: unknown, _req: unknown, res: import("express").Response, _next: (err?: unknown) => void) => {
+    console.error("Erro na API:", err);
+    res.status(500).json({ error: "Erro interno do servidor." });
+  }
+);
