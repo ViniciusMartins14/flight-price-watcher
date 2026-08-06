@@ -13,8 +13,13 @@ export const config = {
   checkIntervalMinutes: Number(process.env.CHECK_INTERVAL_MINUTES ?? 20),
   whatsappTargetNumber: process.env.WHATSAPP_TARGET_NUMBER ?? "",
   headlessScraper: (process.env.SCRAPER_HEADLESS ?? "true") !== "false",
-  dbPath: process.env.DB_PATH ?? "data/db.json",
+  mongodbUri: process.env.MONGODB_URI ?? "",
+  mongodbDbName: process.env.MONGODB_DB_NAME ?? "flight_price_watcher",
 };
+
+export function assertMongoConfigured(): void {
+  required("MONGODB_URI", config.mongodbUri || undefined);
+}
 
 export function assertWhatsappConfigured(): void {
   required("WHATSAPP_TARGET_NUMBER", config.whatsappTargetNumber || undefined);

@@ -16,14 +16,14 @@ function formatPrice(price: number, currency: string): string {
 }
 
 async function checkRoute(routeId: string): Promise<void> {
-  const routes = listRoutes();
+  const routes = await listRoutes();
   const state = routes.find((r) => r.route.id === routeId);
   if (!state) return;
 
   const { route } = state;
   try {
     const fare = await scrapeCheapestFare(route);
-    const result = recordPriceCheck(route.id, fare.price, fare.currency, fare.url);
+    const result = await recordPriceCheck(route.id, fare.price, fare.currency, fare.url);
     if (!result) return;
 
     const label = route.label || `${route.origin} -> ${route.destination}`;
@@ -41,17 +41,26 @@ async function checkRoute(routeId: string): Promise<void> {
           : " (só ida)") +
         `\nPreço: ${formatPrice(fare.price, fare.currency)}` +
         `\n${fare.url}`;
-      await sendWhatsappMessage(message);
+      // Erro ao enviar WhatsApp não deve ser tratado como falha da checagem
+      // de preço em si (que já foi salva com sucesso acima).
+      try {
+        await sendWhatsappMessage(message, route.whatsappNumber);
+      } catch (whatsappErr) {
+        console.error(
+          `Erro ao enviar WhatsApp para rota ${route.origin} -> ${route.destination}:`,
+          whatsappErr instanceof Error ? whatsappErr.message : whatsappErr
+        );
+      }
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`Erro ao checar rota ${route.origin} -> ${route.destination}:`, message);
-    recordError(route.id, message);
+    await recordError(route.id, message);
   }
 }
 
 export async function runCheckCycle(): Promise<void> {
-  const routes = listRoutes();
+  const routes = await listRoutes();
   for (const state of routes) {
     await checkRoute(state.route.id);
     await sleep(DELAY_BETWEEN_ROUTES_MS);

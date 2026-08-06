@@ -1,29 +1,15 @@
-import { startScheduler } from "./scheduler.js";
 import { startServer } from "./server.js";
-import { initWhatsapp, waitForWhatsappReady } from "./whatsapp.js";
+import { startWorker } from "./worker.js";
 
-const WHATSAPP_READY_TIMEOUT_MS = 2 * 60 * 1000;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
+/**
+ * Entrypoint de desenvolvimento local: sobe o dashboard (server.ts) e o
+ * worker (whatsapp + scheduler) juntos no mesmo processo, pra facilitar
+ * testar tudo de uma vez na sua máquina. Em produção, o dashboard roda
+ * separado no Vercel e só o worker roda localmente (veja run-worker.ts).
+ */
 async function main() {
   startServer();
-
-  initWhatsapp();
-  console.log("Aguardando conexão com o WhatsApp (escaneie o QR code se solicitado)...");
-  const timedOut = await Promise.race([
-    waitForWhatsappReady().then(() => false),
-    sleep(WHATSAPP_READY_TIMEOUT_MS).then(() => true),
-  ]);
-  if (timedOut) {
-    console.warn(
-      "WhatsApp não conectou a tempo; seguindo sem notificações até a conexão ser concluída."
-    );
-  }
-
-  startScheduler();
+  await startWorker();
 }
 
 main().catch((err) => {

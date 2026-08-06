@@ -53,15 +53,18 @@ function toChatId(number: string): string {
   return `${digits}@c.us`;
 }
 
-export async function sendWhatsappMessage(message: string): Promise<void> {
+export async function sendWhatsappMessage(message: string, targetNumber?: string): Promise<void> {
   if (!client || !isReady) {
     console.warn("WhatsApp ainda não conectado; pulando envio de mensagem.");
     return;
   }
-  if (!config.whatsappTargetNumber) {
-    console.warn("WHATSAPP_TARGET_NUMBER não configurado; pulando envio de mensagem.");
+  const number = targetNumber || config.whatsappTargetNumber;
+  if (!number) {
+    console.warn(
+      "Nenhum número de WhatsApp configurado (nem na rota, nem em WHATSAPP_TARGET_NUMBER); pulando envio de mensagem."
+    );
     return;
   }
-  const chatId = toChatId(config.whatsappTargetNumber);
+  const chatId = toChatId(number);
   await client.sendMessage(chatId, message);
 }

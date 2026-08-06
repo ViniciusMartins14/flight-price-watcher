@@ -3,17 +3,22 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "description": "Monitora preços de passagens aéreas no Google Voos a cada 20 minutos e avisa no WhatsApp quando encontra um novo menor preço.",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "worker": "tsx src/run-worker.ts",
     "start": "tsx src/index.ts",
     "build": "tsc -p tsconfig.json",
     "test-scrape": "tsx src/scraper/testScrape.ts",
-    "postinstall": "playwright install chromium"
+    "postinstall": "node scripts/postinstall.mjs"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "mongodb": "^6.9.0",
     "playwright": "^1.47.0",
     "qrcode-terminal": "^0.12.0",
     "whatsapp-web.js": "^1.26.0"

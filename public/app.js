@@ -51,6 +51,9 @@ function routeCardHtml(state) {
   const dates = isRoundtrip
     ? `${route.departDate} → ${route.returnDate} (ida e volta)`
     : `${route.departDate} (só ida)`;
+  const whatsappInfo = route.whatsappNumber
+    ? `WhatsApp: ${escapeHtml(route.whatsappNumber)}`
+    : "WhatsApp: número padrão";
   const fareLink =
     lastCheck?.url && isSafeGoogleFlightsUrl(lastCheck.url)
       ? `<a class="fare-link" href="${escapeHtml(lastCheck.url)}" target="_blank" rel="noopener noreferrer">Ver no Google Voos →</a>`
@@ -62,6 +65,7 @@ function routeCardHtml(state) {
         <div>
           <div class="route-card-title">${label}</div>
           <div class="route-card-sub">${origin} → ${destination} · ${dates}</div>
+          <div class="route-card-sub">${whatsappInfo}</div>
         </div>
         <div class="actions">
           <button class="secondary" data-action="check">Checar agora</button>

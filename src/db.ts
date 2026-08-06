@@ -1,70 +1,119 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
-import { config } from "./config.js";
-import type { Database, FlightRoute, PriceCheck, RouteState } from "./types.js";
+import { getDb } from "./mongo.js";
+import type { FlightRoute, PriceCheck, RouteState } from "./types.js";
 
 const MAX_HISTORY_PER_ROUTE = 100;
 
-function ensureDbFile(): void {
-  const dir = dirname(config.dbPath);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  if (!existsSync(config.dbPath)) {
-    const empty: Database = { routes: [] };
-    writeFileSync(config.dbPath, JSON.stringify(empty, null, 2), "utf-8");
-  }
+interface RouteDoc {
+  _id: string;
+  label: string;
+  origin: string;
+  destination: string;
+  tripType: FlightRoute["tripType"];
+  departDate: string;
+  returnDate?: string;
+  whatsappNumber?: string;
+  createdAt: string;
+  lowestPrice?: number;
+  lowestPriceAt?: string;
+  lastError?: string;
 }
 
-function load(): Database {
-  ensureDbFile();
-  const raw = readFileSync(config.dbPath, "utf-8");
-  return JSON.parse(raw) as Database;
+interface PriceCheckDoc extends PriceCheck {
+  routeId: string;
 }
 
-function save(db: Database): void {
-  writeFileSync(config.dbPath, JSON.stringify(db, null, 2), "utf-8");
+async function routesCollection() {
+  const db = await getDb();
+  return db.collection<RouteDoc>("routes");
 }
 
-export function listRoutes(): RouteState[] {
-  return load().routes;
+async function priceChecksCollection() {
+  const db = await getDb();
+  return db.collection<PriceCheckDoc>("priceChecks");
 }
 
-export function getRoute(id: string): RouteState | undefined {
-  return load().routes.find((r) => r.route.id === id);
+function toFlightRoute(doc: RouteDoc): FlightRoute {
+  return {
+    id: doc._id,
+    label: doc.label,
+    origin: doc.origin,
+    destination: doc.destination,
+    tripType: doc.tripType,
+    departDate: doc.departDate,
+    returnDate: doc.returnDate,
+    whatsappNumber: doc.whatsappNumber,
+    createdAt: doc.createdAt,
+  };
 }
 
-export function addRoute(input: Omit<FlightRoute, "id" | "createdAt">): RouteState {
-  const db = load();
-  const route: FlightRoute = {
-    ...input,
-    id: randomUUID(),
+async function buildRouteState(doc: RouteDoc): Promise<RouteState> {
+  const checks = await priceChecksCollection();
+  const history = await checks
+    .find({ routeId: doc._id }, { projection: { _id: 0, routeId: 0 } })
+    .sort({ checkedAt: -1 })
+    .limit(MAX_HISTORY_PER_ROUTE)
+    .toArray();
+
+  return {
+    route: toFlightRoute(doc),
+    lowestPrice: doc.lowestPrice,
+    lowestPriceAt: doc.lowestPriceAt,
+    history,
+    lastError: doc.lastError,
+  };
+}
+
+export async function listRoutes(): Promise<RouteState[]> {
+  const routes = await routesCollection();
+  const docs = await routes.find().sort({ createdAt: 1 }).toArray();
+  return Promise.all(docs.map(buildRouteState));
+}
+
+export async function getRoute(id: string): Promise<RouteState | undefined> {
+  const routes = await routesCollection();
+  const doc = await routes.findOne({ _id: id });
+  return doc ? buildRouteState(doc) : undefined;
+}
+
+export async function addRoute(
+  input: Omit<FlightRoute, "id" | "createdAt">
+): Promise<RouteState> {
+  const routes = await routesCollection();
+  const doc: RouteDoc = {
+    _id: randomUUID(),
+    label: input.label,
+    origin: input.origin,
+    destination: input.destination,
+    tripType: input.tripType,
+    departDate: input.departDate,
+    returnDate: input.returnDate,
+    whatsappNumber: input.whatsappNumber,
     createdAt: new Date().toISOString(),
   };
-  const state: RouteState = { route, history: [] };
-  db.routes.push(state);
-  save(db);
-  return state;
+  await routes.insertOne(doc);
+  return buildRouteState(doc);
 }
 
-export function removeRoute(id: string): boolean {
-  const db = load();
-  const before = db.routes.length;
-  db.routes = db.routes.filter((r) => r.route.id !== id);
-  save(db);
-  return db.routes.length < before;
+export async function removeRoute(id: string): Promise<boolean> {
+  const routes = await routesCollection();
+  const checks = await priceChecksCollection();
+  const result = await routes.deleteOne({ _id: id });
+  await checks.deleteMany({ routeId: id });
+  return result.deletedCount > 0;
 }
 
-export function recordPriceCheck(
+export async function recordPriceCheck(
   routeId: string,
   price: number,
   currency: string,
   url: string
-): { state: RouteState; check: PriceCheck } | undefined {
-  const db = load();
-  const state = db.routes.find((r) => r.route.id === routeId);
-  if (!state) return undefined;
+): Promise<{ state: RouteState; check: PriceCheck } | undefined> {
+  const routes = await routesCollection();
+  const doc = await routes.findOne({ _id: routeId });
+  if (!doc) return undefined;
 
-  const isNewLow = state.lowestPrice === undefined || price < state.lowestPrice;
+  const isNewLow = doc.lowestPrice === undefined || price < doc.lowestPrice;
   const check: PriceCheck = {
     price,
     currency,
@@ -73,25 +122,32 @@ export function recordPriceCheck(
     url,
   };
 
+  const checks = await priceChecksCollection();
+  await checks.insertOne({ ...check, routeId });
+
+  const oldestKept = await checks
+    .find({ routeId })
+    .sort({ checkedAt: -1 })
+    .skip(MAX_HISTORY_PER_ROUTE)
+    .limit(1)
+    .toArray();
+  if (oldestKept.length > 0) {
+    await checks.deleteMany({ routeId, checkedAt: { $lt: oldestKept[0].checkedAt } });
+  }
+
+  const update: Partial<RouteDoc> = { lastError: undefined };
   if (isNewLow) {
-    state.lowestPrice = price;
-    state.lowestPriceAt = check.checkedAt;
+    update.lowestPrice = price;
+    update.lowestPriceAt = check.checkedAt;
   }
+  await routes.updateOne({ _id: routeId }, { $set: update });
 
-  state.history.unshift(check);
-  if (state.history.length > MAX_HISTORY_PER_ROUTE) {
-    state.history.length = MAX_HISTORY_PER_ROUTE;
-  }
-  state.lastError = undefined;
-
-  save(db);
+  const updatedDoc = await routes.findOne({ _id: routeId });
+  const state = await buildRouteState(updatedDoc as RouteDoc);
   return { state, check };
 }
 
-export function recordError(routeId: string, message: string): void {
-  const db = load();
-  const state = db.routes.find((r) => r.route.id === routeId);
-  if (!state) return;
-  state.lastError = message;
-  save(db);
+export async function recordError(routeId: string, message: string): Promise<void> {
+  const routes = await routesCollection();
+  await routes.updateOne({ _id: routeId }, { $set: { lastError: message } });
 }

@@ -8,6 +8,7 @@ export interface FlightRoute {
   tripType: TripType;
   departDate: string; // YYYY-MM-DD
   returnDate?: string; // YYYY-MM-DD, obrigatório se tripType === "roundtrip"
+  whatsappNumber?: string; // número que recebe o alerta dessa rota; sem isso usa o número padrão do .env
   createdAt: string;
 }
 
@@ -25,8 +26,4 @@ export interface RouteState {
   lowestPriceAt?: string;
   history: PriceCheck[]; // mais recentes primeiro, limitado a MAX_HISTORY
   lastError?: string;
-}
-
-export interface Database {
-  routes: RouteState[];
 }
