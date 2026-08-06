@@ -21,6 +21,7 @@ const combineStopsInput = document.getElementById("combineStops");
 const arriveByField = document.getElementById("arriveByField");
 const arriveByInput = document.getElementById("arriveBy");
 const departDateInput = document.getElementById("departDate");
+const tryThreeLegsInput = document.getElementById("tryThreeLegs");
 
 let pollHandle;
 
@@ -38,7 +39,10 @@ function syncReturnDateField() {
 
 function syncArriveByField() {
   arriveByField.hidden = !combineStopsInput.checked;
-  if (!combineStopsInput.checked) arriveByInput.value = "";
+  if (!combineStopsInput.checked) {
+    arriveByInput.value = "";
+    tryThreeLegsInput.checked = false;
+  }
 }
 
 combineStopsInput.addEventListener("change", syncArriveByField);
@@ -157,24 +161,29 @@ function formatFlightTime(iso) {
   });
 }
 
-function comboDetailsHtml(combo, directPrice, originIata, destinationIata) {
+function comboDetailsHtml(combo, directPrice) {
   if (!combo || combo.totalPrice >= directPrice) return "";
 
-  const legHtml = (leg, title) => `
+  const legHtml = (leg, index) => `
     <div class="combo-leg">
-      <strong>${escapeHtml(title)}</strong>: ${formatFlightTime(leg.departAt)} → ${formatFlightTime(leg.arriveAt)} ·
+      <strong>Trecho ${index + 1} (${escapeHtml(leg.from)} → ${escapeHtml(leg.to)})</strong>:
+      ${formatFlightTime(leg.departAt)} → ${formatFlightTime(leg.arriveAt)} ·
       ${formatPrice(leg.price, leg.currency)}
       ${isSafeGoogleFlightsUrl(leg.url) ? `· <a href="${escapeHtml(leg.url)}" target="_blank" rel="noopener noreferrer">ver voo</a>` : ""}
     </div>
   `;
 
+  const via = combo.legs
+    .slice(0, -1)
+    .map((leg) => leg.to)
+    .join(", ");
+
   return `
     <div class="combo-details">
-      <div class="combo-title">✈️ Tarifa combinada mais barata, via ${escapeHtml(combo.via)}: ${formatPrice(combo.totalPrice, combo.currency)}</div>
-      ${legHtml(combo.leg1, `Trecho 1 (${originIata} → ${combo.via})`)}
-      ${legHtml(combo.leg2, `Trecho 2 (${combo.via} → ${destinationIata})`)}
+      <div class="combo-title">✈️ Tarifa combinada mais barata, via ${escapeHtml(via)}: ${formatPrice(combo.totalPrice, combo.currency)}</div>
+      ${combo.legs.map(legHtml).join("")}
       <div class="hint-text" style="margin-top:6px">
-        ⚠️ São 2 passagens separadas: confira o tempo de conexão antes de comprar, e não há
+        ⚠️ São ${combo.legs.length} passagens separadas: confira o tempo de conexão antes de comprar, e não há
         proteção se um voo atrasar e você perder o outro.
       </div>
     </div>
@@ -203,9 +212,7 @@ function routeCardHtml(state) {
     lastCheck?.url && isSafeGoogleFlightsUrl(lastCheck.url)
       ? `<a class="fare-link" href="${escapeHtml(lastCheck.url)}" target="_blank" rel="noopener noreferrer">Ver no Google Voos →</a>`
       : "";
-  const comboHtml = lastCheck?.combo
-    ? comboDetailsHtml(lastCheck.combo, lastCheck.price, origin, destination)
-    : "";
+  const comboHtml = lastCheck?.combo ? comboDetailsHtml(lastCheck.combo, lastCheck.price) : "";
 
   return `
     <article class="route-card" data-id="${route.id}">

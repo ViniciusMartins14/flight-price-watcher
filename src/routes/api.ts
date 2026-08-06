@@ -35,6 +35,7 @@ apiRouter.post(
       whatsappNumber,
       combineStops,
       arriveBy,
+      tryThreeLegs,
     } = req.body ?? {};
 
     if (!origin || !destination || !departDate) {
@@ -55,6 +56,13 @@ apiRouter.post(
     if (combineStops && tripType !== "oneway") {
       res.status(400).json({
         error: "Buscar tarifa combinada só é suportado para rotas só de ida, por enquanto.",
+      });
+      return;
+    }
+
+    if (tryThreeLegs && !combineStops) {
+      res.status(400).json({
+        error: "tryThreeLegs só faz sentido com combineStops ativado.",
       });
       return;
     }
@@ -125,6 +133,7 @@ apiRouter.post(
       whatsappNumber: cleanedWhatsappNumber,
       combineStops: Boolean(combineStops),
       arriveBy: cleanedArriveBy,
+      tryThreeLegs: Boolean(tryThreeLegs),
     });
 
     res.status(201).json(state);

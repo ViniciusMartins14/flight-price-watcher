@@ -2,7 +2,7 @@ import { config } from "./config.js";
 import { getRoute, listAllRoutes, recordError, recordPriceCheck } from "./db.js";
 import { findBestCombo } from "./scraper/comboSearch.js";
 import { scrapeCheapestFare } from "./scraper/googleFlights.js";
-import type { ComboResult } from "./types.js";
+import type { ComboLeg, ComboResult } from "./types.js";
 import { sendWhatsappMessage } from "./whatsapp.js";
 
 const DELAY_BETWEEN_ROUTES_MS = 5000;
@@ -17,12 +17,22 @@ function formatPrice(price: number, currency: string): string {
     : `${currency} ${price}`;
 }
 
-function formatComboLeg(leg: ComboResult["leg1"]): string {
+function formatComboLeg(leg: ComboLeg, index: number): string {
   const depart = new Date(leg.departAt);
   const arrive = new Date(leg.arriveAt);
   const fmt = (d: Date) =>
     d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-  return `${fmt(depart)} → ${fmt(arrive)}: ${formatPrice(leg.price, leg.currency)}\n${leg.url}`;
+  return (
+    `Trecho ${index + 1} (${leg.from} → ${leg.to}):\n` +
+    `${fmt(depart)} → ${fmt(arrive)}: ${formatPrice(leg.price, leg.currency)}\n${leg.url}`
+  );
+}
+
+function comboVia(combo: ComboResult): string {
+  return combo.legs
+    .slice(0, -1)
+    .map((leg) => leg.to)
+    .join(", ");
 }
 
 async function checkRoute(routeId: string): Promise<void> {
@@ -57,7 +67,7 @@ async function checkRoute(routeId: string): Promise<void> {
     console.log(
       `[${new Date().toLocaleString("pt-BR")}] ${label}: ${formatPrice(fare.price, fare.currency)}` +
         (comboIsCheaper
-          ? ` (combinada via ${combo!.via}: ${formatPrice(effectivePrice, combo!.currency)})`
+          ? ` (combinada via ${comboVia(combo!)}: ${formatPrice(effectivePrice, combo!.currency)})`
           : "") +
         (result.check.isNewLow ? " (NOVO MENOR PREÇO)" : "")
     );
@@ -68,12 +78,11 @@ async function checkRoute(routeId: string): Promise<void> {
         (route.tripType === "roundtrip" && route.returnDate ? ` (volta ${route.returnDate})` : " (só ida)");
 
       const message = comboIsCheaper
-        ? `✈️ Novo menor preço para ${label} (tarifa combinada, 2 passagens separadas)!\n` +
+        ? `✈️ Novo menor preço para ${label} (tarifa combinada, ${combo!.legs.length} passagens separadas)!\n` +
           `${routeDescription}\n` +
           `Total: ${formatPrice(effectivePrice, combo!.currency)} (direto sairia ${formatPrice(fare.price, fare.currency)})\n\n` +
-          `Trecho 1 (${route.origin} → ${combo!.via}):\n${formatComboLeg(combo!.leg1)}\n\n` +
-          `Trecho 2 (${combo!.via} → ${route.destination}):\n${formatComboLeg(combo!.leg2)}\n\n` +
-          `⚠️ São 2 bilhetes separados: confira o tempo de conexão, recolha e despache a bagagem de novo, e não há proteção se um voo atrasar e você perder o outro.`
+          combo!.legs.map((leg, i) => formatComboLeg(leg, i)).join("\n\n") +
+          `\n\n⚠️ São ${combo!.legs.length} bilhetes separados: confira o tempo de conexão, recolha e despache a bagagem de novo, e não há proteção se um voo atrasar e você perder o outro.`
         : `✈️ Novo menor preço para ${label}!\n` +
           `${routeDescription}\n` +
           `Preço: ${formatPrice(fare.price, fare.currency)}\n` +

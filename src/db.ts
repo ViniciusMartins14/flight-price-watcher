@@ -16,6 +16,7 @@ interface RouteDoc {
   whatsappNumber?: string;
   combineStops?: boolean;
   arriveBy?: string;
+  tryThreeLegs?: boolean;
   createdAt: string;
   lowestPrice?: number;
   lowestPriceAt?: string;
@@ -61,6 +62,7 @@ function toFlightRoute(doc: RouteDoc): FlightRoute {
     whatsappNumber: doc.whatsappNumber,
     combineStops: doc.combineStops,
     arriveBy: doc.arriveBy,
+    tryThreeLegs: doc.tryThreeLegs,
     createdAt: doc.createdAt,
   };
 }
@@ -122,6 +124,7 @@ export async function addRoute(
     whatsappNumber: input.whatsappNumber,
     combineStops: input.combineStops,
     arriveBy: input.arriveBy,
+    tryThreeLegs: input.tryThreeLegs,
     createdAt: new Date().toISOString(),
   };
   await routes.insertOne(doc);
