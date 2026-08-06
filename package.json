@@ -1,0 +1,27 @@
+{
+  "name": "flight-price-watcher",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Monitora preços de passagens aéreas no Google Voos a cada 20 minutos e avisa no WhatsApp quando encontra um novo menor preço.",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "test-scrape": "tsx src/scraper/testScrape.ts",
+    "postinstall": "playwright install chromium"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "playwright": "^1.47.0",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.26.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.5.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4"
+  }
+}

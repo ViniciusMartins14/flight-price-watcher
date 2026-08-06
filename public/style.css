@@ -1,0 +1,194 @@
+:root {
+  color-scheme: light dark;
+  --bg: #0f1115;
+  --card-bg: #1a1d24;
+  --border: #2a2e37;
+  --text: #e7e9ee;
+  --muted: #9aa1af;
+  --accent: #3fb950;
+  --accent-2: #58a6ff;
+  --danger: #f85149;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f5f6f8;
+    --card-bg: #ffffff;
+    --border: #e2e4e9;
+    --text: #1a1d24;
+    --muted: #5c6270;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+header {
+  padding: 24px 20px 8px;
+  text-align: center;
+}
+
+header h1 {
+  margin: 0 0 4px;
+}
+
+header p {
+  margin: 0;
+  color: var(--muted);
+}
+
+main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 16px 20px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+#route-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+label {
+  font-size: 0.85em;
+  color: var(--muted);
+}
+
+input,
+select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 1em;
+}
+
+button {
+  background: var(--accent-2);
+  border: none;
+  border-radius: 8px;
+  color: #0b0d11;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+button.danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+#routes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.route-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.route-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.route-card-title {
+  font-weight: 600;
+  font-size: 1.1em;
+}
+
+.route-card-sub {
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+.price-row {
+  display: flex;
+  gap: 24px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.price-stat .label {
+  color: var(--muted);
+  font-size: 0.8em;
+  display: block;
+}
+
+.price-stat .value {
+  font-size: 1.3em;
+  font-weight: 700;
+}
+
+.price-stat .value.low {
+  color: var(--accent);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.fare-link {
+  display: inline-block;
+  margin-top: 12px;
+  color: var(--accent-2);
+  font-size: 0.9em;
+  text-decoration: none;
+}
+
+.fare-link:hover {
+  text-decoration: underline;
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: 0.85em;
+  margin-top: 8px;
+}
+
+.empty-state {
+  color: var(--muted);
+  text-align: center;
+  padding: 20px;
+}

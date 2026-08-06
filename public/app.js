@@ -1,0 +1,145 @@
+const routesList = document.getElementById("routes-list");
+const form = document.getElementById("route-form");
+const tripTypeSelect = document.getElementById("tripType");
+const returnDateField = document.getElementById("returnDateField");
+const returnDateInput = document.getElementById("returnDate");
+
+function syncReturnDateField() {
+  const isRoundtrip = tripTypeSelect.value === "roundtrip";
+  returnDateField.hidden = !isRoundtrip;
+  returnDateInput.required = isRoundtrip;
+  if (!isRoundtrip) returnDateInput.value = "";
+}
+
+tripTypeSelect.addEventListener("change", syncReturnDateField);
+syncReturnDateField();
+
+function formatPrice(price, currency) {
+  if (currency === "BRL") {
+    return `R$ ${Number(price).toLocaleString("pt-BR")}`;
+  }
+  return `${currency} ${price}`;
+}
+
+function formatDateTime(iso) {
+  if (!iso) return "-";
+  return new Date(iso).toLocaleString("pt-BR");
+}
+
+function escapeHtml(value) {
+  const div = document.createElement("div");
+  div.textContent = String(value ?? "");
+  return div.innerHTML;
+}
+
+function isSafeGoogleFlightsUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && parsed.hostname === "www.google.com";
+  } catch {
+    return false;
+  }
+}
+
+function routeCardHtml(state) {
+  const { route, lowestPrice, lowestPriceAt, history, lastError } = state;
+  const label = escapeHtml(route.label || `${route.origin} -> ${route.destination}`);
+  const origin = escapeHtml(route.origin);
+  const destination = escapeHtml(route.destination);
+  const lastCheck = history[0];
+  const isRoundtrip = route.tripType === "roundtrip" && route.returnDate;
+  const dates = isRoundtrip
+    ? `${route.departDate} → ${route.returnDate} (ida e volta)`
+    : `${route.departDate} (só ida)`;
+  const fareLink =
+    lastCheck?.url && isSafeGoogleFlightsUrl(lastCheck.url)
+      ? `<a class="fare-link" href="${escapeHtml(lastCheck.url)}" target="_blank" rel="noopener noreferrer">Ver no Google Voos →</a>`
+      : "";
+
+  return `
+    <article class="route-card" data-id="${route.id}">
+      <div class="route-card-header">
+        <div>
+          <div class="route-card-title">${label}</div>
+          <div class="route-card-sub">${origin} → ${destination} · ${dates}</div>
+        </div>
+        <div class="actions">
+          <button class="secondary" data-action="check">Checar agora</button>
+          <button class="danger" data-action="remove">Remover</button>
+        </div>
+      </div>
+
+      <div class="price-row">
+        <div class="price-stat">
+          <span class="label">Menor preço já visto</span>
+          <span class="value low">${lowestPrice ? formatPrice(lowestPrice, lastCheck?.currency ?? "BRL") : "-"}</span>
+          <span class="label">${lowestPriceAt ? formatDateTime(lowestPriceAt) : ""}</span>
+        </div>
+        <div class="price-stat">
+          <span class="label">Última checagem</span>
+          <span class="value">${lastCheck ? formatPrice(lastCheck.price, lastCheck.currency) : "ainda não checado"}</span>
+          <span class="label">${lastCheck ? formatDateTime(lastCheck.checkedAt) : ""}</span>
+        </div>
+      </div>
+
+      ${fareLink}
+      ${lastError ? `<div class="error-text">Erro na última checagem: ${escapeHtml(lastError)}</div>` : ""}
+    </article>
+  `;
+}
+
+async function loadRoutes() {
+  const res = await fetch("/api/routes");
+  const states = await res.json();
+
+  if (states.length === 0) {
+    routesList.innerHTML = `<div class="empty-state">Nenhuma rota cadastrada ainda.</div>`;
+    return;
+  }
+
+  routesList.innerHTML = states.map(routeCardHtml).join("");
+}
+
+routesList.addEventListener("click", async (e) => {
+  const button = e.target.closest("button[data-action]");
+  if (!button) return;
+
+  const card = button.closest(".route-card");
+  const id = card.dataset.id;
+  const action = button.dataset.action;
+
+  if (action === "remove") {
+    if (!confirm("Remover esta rota?")) return;
+    await fetch(`/api/routes/${id}`, { method: "DELETE" });
+    await loadRoutes();
+  }
+
+  if (action === "check") {
+    button.disabled = true;
+    button.textContent = "Checando...";
+    try {
+      await fetch(`/api/routes/${id}/check`, { method: "POST" });
+    } finally {
+      button.disabled = false;
+      button.textContent = "Checar agora";
+      await loadRoutes();
+    }
+  }
+});
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(form).entries());
+
+  await fetch("/api/routes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  form.reset();
+  await loadRoutes();
+});
+
+loadRoutes();
+setInterval(loadRoutes, 30000);
