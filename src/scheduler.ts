@@ -44,7 +44,7 @@ async function checkRoute(routeId: string): Promise<void> {
     const fare = await scrapeCheapestFare(route);
 
     let combo: ComboResult | undefined;
-    if (route.combineStops && route.tripType === "oneway") {
+    if (route.combineStops) {
       try {
         combo = await findBestCombo(route);
       } catch (comboErr) {

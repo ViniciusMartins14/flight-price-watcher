@@ -10,6 +10,23 @@ export const apiRouter = Router();
 
 apiRouter.use(requireAuth);
 
+// Valida uma data-alvo de chegada (arriveBy/returnArriveBy) contra a data
+// base do trecho a que ela se refere (departDate pra ida, returnDate pra
+// volta). Retorna a mensagem de erro, ou undefined se estiver tudo certo.
+function validateArriveByDate(value: string, baseDate: string, label: string): string | undefined {
+  const base = new Date(`${baseDate}T00:00:00`);
+  const target = new Date(`${value}T00:00:00`);
+  if (target < base) {
+    return `${label} não pode ser antes da data de partida desse trecho.`;
+  }
+  const maxDate = new Date(base);
+  maxDate.setDate(maxDate.getDate() + MAX_ARRIVE_BY_DAYS);
+  if (target > maxDate) {
+    return `${label} não pode ser mais de ${MAX_ARRIVE_BY_DAYS} dias depois da partida desse trecho.`;
+  }
+  return undefined;
+}
+
 apiRouter.get("/airports", (req, res) => {
   const q = String(req.query.q ?? "");
   res.json(searchAirports(q));
@@ -35,6 +52,7 @@ apiRouter.post(
       whatsappNumber,
       combineStops,
       arriveBy,
+      returnArriveBy,
       tryThreeLegs,
     } = req.body ?? {};
 
@@ -53,13 +71,6 @@ apiRouter.post(
       return;
     }
 
-    if (combineStops && tripType !== "oneway") {
-      res.status(400).json({
-        error: "Buscar tarifa combinada só é suportado para rotas só de ida, por enquanto.",
-      });
-      return;
-    }
-
     if (tryThreeLegs && !combineStops) {
       res.status(400).json({
         error: "tryThreeLegs só faz sentido com combineStops ativado.",
@@ -67,30 +78,38 @@ apiRouter.post(
       return;
     }
 
+    if ((arriveBy || returnArriveBy) && !combineStops) {
+      res.status(400).json({
+        error: "arriveBy/returnArriveBy só fazem sentido com combineStops ativado.",
+      });
+      return;
+    }
+
+    if (returnArriveBy && tripType !== "roundtrip") {
+      res.status(400).json({
+        error: "returnArriveBy só faz sentido em rotas de ida e volta.",
+      });
+      return;
+    }
+
     let cleanedArriveBy: string | undefined;
     if (arriveBy) {
-      if (!combineStops) {
-        res.status(400).json({
-          error: "arriveBy só faz sentido com combineStops ativado.",
-        });
-        return;
-      }
-      const maxDate = new Date(`${departDate}T00:00:00`);
-      maxDate.setDate(maxDate.getDate() + MAX_ARRIVE_BY_DAYS);
-      const arriveByDate = new Date(`${arriveBy}T00:00:00`);
-      if (arriveByDate < new Date(`${departDate}T00:00:00`)) {
-        res.status(400).json({
-          error: "arriveBy não pode ser antes da data de ida.",
-        });
-        return;
-      }
-      if (arriveByDate > maxDate) {
-        res.status(400).json({
-          error: `arriveBy não pode ser mais de ${MAX_ARRIVE_BY_DAYS} dias depois da data de ida.`,
-        });
+      const error = validateArriveByDate(arriveBy, departDate, "arriveBy");
+      if (error) {
+        res.status(400).json({ error });
         return;
       }
       cleanedArriveBy = arriveBy;
+    }
+
+    let cleanedReturnArriveBy: string | undefined;
+    if (returnArriveBy) {
+      const error = validateArriveByDate(returnArriveBy, returnDate, "returnArriveBy");
+      if (error) {
+        res.status(400).json({ error });
+        return;
+      }
+      cleanedReturnArriveBy = returnArriveBy;
     }
 
     const originAirport = resolveAirportCode(String(origin));
@@ -133,6 +152,7 @@ apiRouter.post(
       whatsappNumber: cleanedWhatsappNumber,
       combineStops: Boolean(combineStops),
       arriveBy: cleanedArriveBy,
+      returnArriveBy: cleanedReturnArriveBy,
       tryThreeLegs: Boolean(tryThreeLegs),
     });
 

@@ -109,16 +109,17 @@
           <div class="field combine-stops-field" id="combineStopsField">
             <label class="checkbox-label">
               <input id="combineStops" name="combineStops" type="checkbox" />
-              Tentar combinar 2 voos separados (mais barato às vezes)
+              Tentar combinar voos separados (mais barato às vezes)
             </label>
             <p class="hint-text">
               Além do voo direto, também busca um voo até um aeroporto perto do destino + um
               voo de lá até o destino, somando os preços. Deixa a checagem bem mais lenta.
-              São 2 passagens separadas: se um voo atrasar, você pode perder o outro sem
-              proteção, e precisa recolher/despachar a bagagem de novo.
+              São passagens separadas: se um voo atrasar, você pode perder o outro sem
+              proteção, e precisa recolher/despachar a bagagem de novo. Em rotas de ida e
+              volta, cada sentido é combinado de forma independente.
             </p>
             <div class="field" id="arriveByField" hidden>
-              <label for="arriveBy">Topa chegar até que data? (opcional)</label>
+              <label for="arriveBy">Na ida, topa chegar até que data? (opcional)</label>
               <input id="arriveBy" name="arriveBy" type="date" />
               <p class="hint-text">
                 Deixe em branco pra só aceitar conexão apertada (1h30 a 12h no mesmo dia). Se
@@ -127,13 +128,23 @@
                 bem mais pra checar (máximo 7 dias de janela).
               </p>
             </div>
+            <div class="field" id="returnArriveByField" hidden>
+              <label for="returnArriveBy">Na volta, topa chegar em casa até que data? (opcional)</label>
+              <input id="returnArriveBy" name="returnArriveBy" type="date" />
+              <p class="hint-text">
+                Mesma ideia, mas pro trecho de volta — data diferente porque é depois da data
+                de volta, não da ida.
+              </p>
+            </div>
             <label class="checkbox-label" style="margin-top: 10px">
               <input id="tryThreeLegs" name="tryThreeLegs" type="checkbox" />
               Também tentar com 2 conexões (via um hub tipo Lisboa/Madri/Roma/Istambul)
             </label>
             <p class="hint-text">
               Pra quando não há voo bom direto até os aeroportos perto do destino. Fica AINDA
-              mais lento (pode levar vários minutos a mais por checagem).
+              mais lento (pode levar vários minutos a mais por checagem). Também respeita as
+              datas-alvo de chegada acima, se preenchidas — pode esperar dias em qualquer uma
+              das escalas.
             </p>
           </div>
           <button type="submit">Adicionar rota</button>

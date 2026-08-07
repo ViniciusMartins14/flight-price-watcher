@@ -8,6 +8,8 @@ export interface ScrapedFare {
   price: number;
   currency: string;
   url: string;
+  departAt: string; // ISO, do voo mais barato encontrado
+  arriveAt: string; // ISO, do voo mais barato encontrado
 }
 
 async function loadResultsPage(page: Page, url: string): Promise<void> {
@@ -110,8 +112,14 @@ export async function scrapeFlightOptions(route: FlightRoute): Promise<FlightOpt
  */
 export async function scrapeCheapestFare(route: FlightRoute): Promise<ScrapedFare> {
   const options = await scrapeFlightOptions(route);
-  const cheapest = Math.min(...options.map((o) => o.price));
+  const cheapest = options.reduce((min, o) => (o.price < min.price ? o : min));
   // Usa a URL original (sem o parâmetro de aba/ordenação que o clique adiciona),
   // já que esse parâmetro não tem efeito quando alguém abre o link do zero.
-  return { price: cheapest, currency: "BRL", url: buildSearchUrl(route) };
+  return {
+    price: cheapest.price,
+    currency: cheapest.currency,
+    url: buildSearchUrl(route),
+    departAt: cheapest.departAt,
+    arriveAt: cheapest.arriveAt,
+  };
 }

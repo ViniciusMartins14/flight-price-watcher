@@ -20,6 +20,8 @@ const combineStopsField = document.getElementById("combineStopsField");
 const combineStopsInput = document.getElementById("combineStops");
 const arriveByField = document.getElementById("arriveByField");
 const arriveByInput = document.getElementById("arriveBy");
+const returnArriveByField = document.getElementById("returnArriveByField");
+const returnArriveByInput = document.getElementById("returnArriveBy");
 const departDateInput = document.getElementById("departDate");
 const tryThreeLegsInput = document.getElementById("tryThreeLegs");
 
@@ -31,18 +33,20 @@ function syncReturnDateField() {
   returnDateInput.required = isRoundtrip;
   if (!isRoundtrip) returnDateInput.value = "";
 
-  // Tarifa combinada só é suportada pra rotas só de ida por enquanto.
-  combineStopsField.hidden = isRoundtrip;
-  if (isRoundtrip) combineStopsInput.checked = false;
   syncArriveByField();
 }
 
 function syncArriveByField() {
+  const isRoundtrip = tripTypeSelect.value === "roundtrip";
+
   arriveByField.hidden = !combineStopsInput.checked;
   if (!combineStopsInput.checked) {
     arriveByInput.value = "";
     tryThreeLegsInput.checked = false;
   }
+
+  returnArriveByField.hidden = !combineStopsInput.checked || !isRoundtrip;
+  if (returnArriveByField.hidden) returnArriveByInput.value = "";
 }
 
 combineStopsInput.addEventListener("change", syncArriveByField);
@@ -51,7 +55,12 @@ function syncArriveByMin() {
   if (departDateInput.value) arriveByInput.min = departDateInput.value;
 }
 
+function syncReturnArriveByMin() {
+  if (returnDateInput.value) returnArriveByInput.min = returnDateInput.value;
+}
+
 departDateInput.addEventListener("change", syncArriveByMin);
+returnDateInput.addEventListener("change", syncReturnArriveByMin);
 
 tripTypeSelect.addEventListener("change", syncReturnDateField);
 syncReturnDateField();
@@ -204,9 +213,18 @@ function routeCardHtml(state) {
     ? `WhatsApp: ${escapeHtml(route.whatsappNumber)}`
     : "WhatsApp: número padrão";
   const combineInfo = route.combineStops
-    ? route.arriveBy
-      ? `Combinação: aceita chegar até ${escapeHtml(route.arriveBy)} (stopover)`
-      : "Combinação: só conexão apertada (mesmo dia)"
+    ? [
+        "Combinação:",
+        route.arriveBy ? `ida até ${escapeHtml(route.arriveBy)} (stopover)` : "ida conexão apertada",
+        isRoundtrip
+          ? route.returnArriveBy
+            ? `· volta até ${escapeHtml(route.returnArriveBy)} (stopover)`
+            : "· volta conexão apertada"
+          : "",
+        route.tryThreeLegs ? "· até 2 conexões" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")
     : "";
   const fareLink =
     lastCheck?.url && isSafeGoogleFlightsUrl(lastCheck.url)
