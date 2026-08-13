@@ -3,7 +3,6 @@ import { getRoute, listAllRoutes, recordError, recordPriceCheck } from "./db.js"
 import { findBestCombo } from "./scraper/comboSearch.js";
 import { scrapeCheapestFare } from "./scraper/googleFlights.js";
 import type { ComboLeg, ComboResult } from "./types.js";
-import { sendWhatsappMessage } from "./whatsapp.js";
 
 const DELAY_BETWEEN_ROUTES_MS = 5000;
 
@@ -33,6 +32,20 @@ function comboVia(combo: ComboResult): string {
     .slice(0, -1)
     .map((leg) => leg.to)
     .join(", ");
+}
+
+// Import dinâmico e condicional: whatsapp.ts carrega whatsapp-web.js +
+// playwright no topo do arquivo, pacotes pesados que não são feitos pra
+// rodar empacotados num ambiente serverless. Na Vercel só o dashboard
+// roda (quem manda WhatsApp é o worker local, veja run-worker.ts), então
+// nem chegamos a importar esse módulo por lá.
+async function notifyNewLow(message: string, whatsappNumber?: string): Promise<void> {
+  if (config.isVercel) {
+    console.warn("Notificação de WhatsApp pulada: rodando na Vercel (isso é papel do worker local).");
+    return;
+  }
+  const { sendWhatsappMessage } = await import("./whatsapp.js");
+  await sendWhatsappMessage(message, whatsappNumber);
 }
 
 async function checkRoute(routeId: string): Promise<void> {
@@ -91,7 +104,7 @@ async function checkRoute(routeId: string): Promise<void> {
       // Erro ao enviar WhatsApp não deve ser tratado como falha da checagem
       // de preço em si (que já foi salva com sucesso acima).
       try {
-        await sendWhatsappMessage(message, route.whatsappNumber);
+        await notifyNewLow(message, route.whatsappNumber);
       } catch (whatsappErr) {
         console.error(
           `Erro ao enviar WhatsApp para rota ${route.origin} -> ${route.destination}:`,

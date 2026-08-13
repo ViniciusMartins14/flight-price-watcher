@@ -1,8 +1,28 @@
-import { chromium, type Page } from "playwright";
+import type { Browser, Page } from "playwright-core";
 import { config } from "../config.js";
 import type { FlightRoute } from "../types.js";
 import { buildSearchUrl } from "./googleFlightsUrl.js";
 import { parseFlightRowLabel, type FlightOption } from "./parseFlightRow.js";
+
+// Na Vercel o Chromium completo do Playwright não está disponível (o
+// download é pulado no build, ver scripts/postinstall.mjs) — usamos o
+// binário empacotado pra serverless do @sparticuz/chromium nesse caso.
+// Localmente/no worker, usa o Chromium que o Playwright já gerencia.
+async function launchBrowser(): Promise<Browser> {
+  if (config.isVercel) {
+    const [{ chromium }, { default: sparticuzChromium }] = await Promise.all([
+      import("playwright-core"),
+      import("@sparticuz/chromium"),
+    ]);
+    return chromium.launch({
+      args: sparticuzChromium.args,
+      executablePath: await sparticuzChromium.executablePath(),
+      headless: true,
+    });
+  }
+  const { chromium } = await import("playwright");
+  return chromium.launch({ headless: config.headlessScraper });
+}
 
 export interface ScrapedFare {
   price: number;
@@ -61,7 +81,7 @@ async function withResultsPage<T>(
   url: string,
   fn: (page: Page) => Promise<T>
 ): Promise<T> {
-  const browser = await chromium.launch({ headless: config.headlessScraper });
+  const browser = await launchBrowser();
   try {
     const context = await browser.newContext({
       locale: "pt-BR",

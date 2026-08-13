@@ -17,6 +17,9 @@ export const config = {
   mongodbDbName: process.env.MONGODB_DB_NAME ?? "flight_price_watcher",
   jwtSecret: process.env.JWT_SECRET ?? "",
   isProduction: process.env.NODE_ENV === "production" || !!process.env.VERCEL,
+  // No Vercel o Chromium do Playwright não é baixado no build (ver
+  // scripts/postinstall.mjs); o scraper usa @sparticuz/chromium nesse caso.
+  isVercel: !!process.env.VERCEL,
 };
 
 export function assertMongoConfigured(): void {
