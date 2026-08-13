@@ -26,6 +26,9 @@ const departDateInput = document.getElementById("departDate");
 const tryThreeLegsInput = document.getElementById("tryThreeLegs");
 
 let pollHandle;
+let pollIntervalMs;
+const FAST_POLL_MS = 3000; // enquanto alguma rota está "checking"
+const SLOW_POLL_MS = 30000;
 
 function syncReturnDateField() {
   const isRoundtrip = tripTypeSelect.value === "roundtrip";
@@ -200,7 +203,7 @@ function comboDetailsHtml(combo, directPrice) {
 }
 
 function routeCardHtml(state) {
-  const { route, lowestPrice, lowestPriceAt, history, lastError } = state;
+  const { route, lowestPrice, lowestPriceAt, history, lastError, checking } = state;
   const label = escapeHtml(route.label || `${route.origin} -> ${route.destination}`);
   const origin = escapeHtml(route.origin);
   const destination = escapeHtml(route.destination);
@@ -242,7 +245,9 @@ function routeCardHtml(state) {
           ${combineInfo ? `<div class="route-card-sub">${combineInfo}</div>` : ""}
         </div>
         <div class="actions">
-          <button class="secondary" data-action="check">Checar agora</button>
+          <button class="secondary" data-action="check" ${checking ? "disabled" : ""}>${
+            checking ? "Buscando..." : "Checar agora"
+          }</button>
           <button class="danger" data-action="remove">Remover</button>
         </div>
       </div>
@@ -262,9 +267,23 @@ function routeCardHtml(state) {
 
       ${fareLink}
       ${comboHtml}
-      ${lastError ? `<div class="error-text">Erro na última checagem: ${escapeHtml(lastError)}</div>` : ""}
+      ${
+        checking
+          ? `<div class="status-text">Buscando preços... isso pode levar alguns minutos em buscas combinadas.</div>`
+          : lastError
+            ? `<div class="error-text">Erro na última checagem: ${escapeHtml(lastError)}</div>`
+            : ""
+      }
     </article>
   `;
+}
+
+function adjustPollingSpeed(states) {
+  const desired = states.some((s) => s.checking) ? FAST_POLL_MS : SLOW_POLL_MS;
+  if (pollHandle && pollIntervalMs === desired) return;
+  clearInterval(pollHandle);
+  pollIntervalMs = desired;
+  pollHandle = setInterval(loadRoutes, desired);
 }
 
 async function loadRoutes() {
@@ -277,10 +296,11 @@ async function loadRoutes() {
 
   if (states.length === 0) {
     routesList.innerHTML = `<div class="empty-state">Nenhuma rota cadastrada ainda.</div>`;
-    return;
+  } else {
+    routesList.innerHTML = states.map(routeCardHtml).join("");
   }
 
-  routesList.innerHTML = states.map(routeCardHtml).join("");
+  adjustPollingSpeed(states);
 }
 
 routesList.addEventListener("click", async (e) => {
@@ -299,14 +319,12 @@ routesList.addEventListener("click", async (e) => {
 
   if (action === "check") {
     button.disabled = true;
-    button.textContent = "Checando...";
-    try {
-      await fetch(`/api/routes/${id}/check`, { method: "POST" });
-    } finally {
-      button.disabled = false;
-      button.textContent = "Checar agora";
-      await loadRoutes();
-    }
+    button.textContent = "Buscando...";
+    // A checagem roda em background no servidor; essa requisição só a
+    // dispara e volta na hora. loadRoutes() já mostra o card em estado
+    // "buscando" e liga o polling rápido até terminar.
+    await fetch(`/api/routes/${id}/check`, { method: "POST" });
+    await loadRoutes();
   }
 });
 
@@ -328,6 +346,8 @@ form.addEventListener("submit", async (e) => {
 
 function showAuth() {
   clearInterval(pollHandle);
+  pollHandle = undefined;
+  pollIntervalMs = undefined;
   authSection.hidden = false;
   appSection.hidden = true;
   userBar.hidden = true;
@@ -339,8 +359,6 @@ function showApp(user) {
   userBar.hidden = false;
   userEmailEl.textContent = user.email;
   loadRoutes();
-  clearInterval(pollHandle);
-  pollHandle = setInterval(loadRoutes, 30000);
 }
 
 showLoginBtn.addEventListener("click", () => {

@@ -1,5 +1,5 @@
 import { config } from "./config.js";
-import { getRoute, listAllRoutes, recordError, recordPriceCheck } from "./db.js";
+import { getRoute, listAllRoutes, recordError, recordPriceCheck, setChecking } from "./db.js";
 import { findBestCombo } from "./scraper/comboSearch.js";
 import { scrapeCheapestFare } from "./scraper/googleFlights.js";
 import type { ComboLeg, ComboResult } from "./types.js";
@@ -53,6 +53,7 @@ async function checkRoute(routeId: string): Promise<void> {
   if (!state) return;
 
   const { route } = state;
+  await setChecking(routeId, true);
   try {
     const fare = await scrapeCheapestFare(route);
 
@@ -116,6 +117,8 @@ async function checkRoute(routeId: string): Promise<void> {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`Erro ao checar rota ${route.origin} -> ${route.destination}:`, message);
     await recordError(route.id, message);
+  } finally {
+    await setChecking(routeId, false);
   }
 }
 

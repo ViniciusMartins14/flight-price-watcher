@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { resolveAirportCode, searchAirports } from "../airports.js";
 import { requireAuth } from "../auth.js";
-import { addRoute, getRoute, listRoutesForUser, removeRoute } from "../db.js";
+import { config } from "../config.js";
+import { addRoute, getRoute, listRoutesForUser, removeRoute, setChecking } from "../db.js";
 import { checkRoute } from "../scheduler.js";
 import { MAX_ARRIVE_BY_DAYS } from "../scraper/comboSearch.js";
 import { asyncHandler } from "./asyncHandler.js";
@@ -175,14 +176,32 @@ apiRouter.delete(
 apiRouter.post(
   "/routes/:id/check",
   asyncHandler(async (req, res) => {
-    const state = await getRoute(req.params.id);
+    const routeId = req.params.id;
+    const state = await getRoute(routeId);
     if (!state || state.route.userId !== req.userId) {
       res.status(404).json({ error: "Rota não encontrada." });
       return;
     }
 
-    await checkRoute(req.params.id);
-    res.json(await getRoute(req.params.id));
+    // Dispara a checagem em background e responde na hora: buscas com
+    // tarifa combinada podem demorar bastante (várias buscas sequenciais),
+    // então não faz sentido travar a requisição esperando terminar. O
+    // frontend acompanha o progresso via GET /routes, olhando o campo
+    // `checking` de cada rota.
+    await setChecking(routeId, true);
+    const checkPromise = checkRoute(routeId).catch((err) => {
+      console.error(`Erro ao checar rota ${routeId} em background:`, err);
+    });
+
+    // Na Vercel a função pode ser encerrada assim que a resposta é
+    // enviada; waitUntil garante que a checagem continue rodando até o
+    // fim mesmo depois do response.
+    if (config.isVercel) {
+      const { waitUntil } = await import("@vercel/functions");
+      waitUntil(checkPromise);
+    }
+
+    res.status(202).json(await getRoute(routeId));
   })
 );
 

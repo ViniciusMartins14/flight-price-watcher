@@ -54,4 +54,5 @@ export interface RouteState {
   lowestPriceAt?: string;
   history: PriceCheck[]; // mais recentes primeiro, limitado a MAX_HISTORY
   lastError?: string;
+  checking: boolean; // true enquanto uma checagem (manual ou do scheduler) está em andamento
 }

@@ -22,6 +22,15 @@ interface RouteDoc {
   lowestPrice?: number;
   lowestPriceAt?: string;
   lastError?: string;
+  checking?: boolean;
+  checkingSince?: string;
+}
+
+const CHECKING_STALE_MS = 10 * 60 * 1000; // 10min — se a função for encerrada no meio (ex: timeout na Vercel), o "checking" não fica travado pra sempre
+
+function isCheckingStale(checkingSince: string | undefined): boolean {
+  if (!checkingSince) return false;
+  return Date.now() - new Date(checkingSince).getTime() > CHECKING_STALE_MS;
 }
 
 interface PriceCheckDoc extends PriceCheck {
@@ -87,6 +96,7 @@ async function buildRouteState(doc: RouteDoc): Promise<RouteState> {
     lowestPriceAt: doc.lowestPriceAt,
     history,
     lastError: doc.lastError,
+    checking: (doc.checking ?? false) && !isCheckingStale(doc.checkingSince),
   };
 }
 
@@ -198,6 +208,16 @@ export async function recordPriceCheck(
 export async function recordError(routeId: string, message: string): Promise<void> {
   const routes = await routesCollection();
   await routes.updateOne({ _id: routeId }, { $set: { lastError: message } });
+}
+
+export async function setChecking(routeId: string, checking: boolean): Promise<void> {
+  const routes = await routesCollection();
+  await routes.updateOne(
+    { _id: routeId },
+    checking
+      ? { $set: { checking: true, checkingSince: new Date().toISOString() } }
+      : { $set: { checking: false }, $unset: { checkingSince: "" } }
+  );
 }
 
 export async function createUser(email: string, passwordHash: string): Promise<User> {

@@ -308,6 +308,12 @@ button.danger {
   margin-top: 8px;
 }
 
+.status-text {
+  color: var(--accent-2);
+  font-size: 0.85em;
+  margin-top: 8px;
+}
+
 .empty-state {
   color: var(--muted);
   text-align: center;

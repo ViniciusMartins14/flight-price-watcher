@@ -1,4 +1,4 @@
-import airportsData from "./airports.json";
+import airportsData from "./airports.json" with { type: "json" };
 
 export interface Airport {
   iata: string;
